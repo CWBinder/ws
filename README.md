@@ -9,6 +9,22 @@ Records are plain YAML and bibliographic files. Content stays on your machine;
 folder views, a search index and an optional Markdown wiki are generated from
 those records. People and agents use the same commands.
 
+## Origins and acknowledgements
+
+`ws` is a shared project by [Christian W. Binder](https://github.com/CWBinder)
+and [Johannes Krondorfer](https://github.com/JKKrondorfer), bringing together
+two brilliant beginnings:
+
+- **Andrej Karpathy's [LLM Wiki idea](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f):**
+  a personal knowledge base of interlinked files that an agent helps maintain
+  and enrich over time.
+- **Johannes Krondorfer's [workspace-admin](https://github.com/JKKrondorfer/workspace-admin):**
+  the early workspace CLI from which this project was forked and developed.
+  It provided the foundation for organising work through a shared command-line tool.
+
+Together, these works give rise to this monumental development:
+*the dawn of a new age of personal superintelligence.*
+
 ## Install
 
 Requires **Git and Python 3.10+ on macOS or Linux**. No uv, roster, inbox or
