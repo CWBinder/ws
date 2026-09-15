@@ -616,6 +616,35 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertEqual(record["contract"], "contracts/objects.md")
         self.assertTrue(record["effects"]["destructive"])
 
+    def test_discovery_routes_to_shipped_usage_guides(self):
+        source_root = Path(__file__).resolve().parents[2]
+        for words in registry._canonical_capability_paths(self.parser):
+            record = registry.command_record(self.parser, words)
+            with self.subTest(command=record["command"]):
+                self.assertTrue((source_root / record["guide"]).is_file())
+
+        for words, guide in (
+            (["add", "literature"], "docs/literature.md"),
+            (["create", "profile"], "docs/profile.md"),
+            (["projects", "install"], "docs/project-install.md"),
+            (["documents", "views", "rebuild"], "docs/browsing.md"),
+            (["init"], "GETTING-STARTED.md"),
+        ):
+            with self.subTest(words=words):
+                record = registry.command_record(self.parser, words)
+                self.assertEqual(record["guide"], guide)
+
+        # A relocated installation prints a usable local path, while JSON
+        # keeps the portable relative pointer used in capability records.
+        from ws_lib import paths
+
+        args = self.parse("describe", "add", "document")
+        buffer = io.StringIO()
+        with mock.patch.object(paths, "SYSTEM", Path("/tmp/ws installation")):
+            with contextlib.redirect_stdout(buffer):
+                args.func(args)
+        self.assertIn("guide: /tmp/ws installation/docs/documents.md", buffer.getvalue())
+
     def test_choice_values_render_once_in_help(self):
         from ws_lib import document_taxonomy, profile_taxonomy
         from ws_lib import project as project_lib

@@ -5,3 +5,7 @@ objects. `ws profile` is the canonical command namespace. Objects live in
 `profile/items/`, are classified by `profile-taxonomy.yaml`, and appear in the
 generated `profile/by-type/` browse tree. The complete data, relationship,
 application, and comprehensive-CV invariants are in `career.md`.
+
+This namespace entry point introduces no additional schema. See the
+[detailed contract](career.md) for extension rules and
+[usage guide](../docs/profile.md) for workflows.

@@ -6,17 +6,9 @@ Use this guide with:
 ws create project --help
 ```
 
-The project contract is:
-
-```text
-~/Projects/ws/contracts/project.md
-```
-
-The base metadata template is:
-
-```text
-~/Projects/ws/templates/project.yaml
-```
+Install ws first using [Getting started](../GETTING-STARTED.md). Project creation
+uses the shipped [metadata template](../templates/project.yaml). The
+[project contract](../contracts/project.md) specifies maintainer extension rules.
 
 Allowed project types and broad fields are configured here (workspace data,
 next to the projects it describes):
@@ -46,8 +38,9 @@ simulation-study
 data-cleaning
 ```
 
-By default, the project is created in the flat store at
-`~/workspace/projects/items` (or `$WS_WORKSPACE_ROOT/projects/items`). To use a
+By default, the project is created in `projects/items/` beneath the configured
+workspace root (`~/workspace` unless changed by `ws init` or an environment
+override). See [Configuration](reference/configuration.md). To use a
 specific projects folder from anywhere on the computer, either pass `--in`:
 
 ```bash
@@ -65,8 +58,7 @@ Resolution order:
 ```text
 --in DIR
 WS_PROJECTS_DIR
-WS_WORKSPACE_ROOT/projects/items
-~/workspace/projects/items
+<resolved-workspace-root>/projects/items
 ```
 
 The command always creates:
@@ -84,7 +76,7 @@ CLAUDE.md
 
 The non-interactive default scaffold contains no empty optional folders. Add `--has-code`, `--has-paper`, or `--has-data` to create the corresponding `code/`, `paper/`, or `data/` folder. `--python` creates Python project metadata and implies `--has-code`; `--venv` creates `.venv` and implies `--python`; `--has-slides` editable-installs the `slide_factory` deck generator from `~/Utils/SlideGenerator` into `.venv` and implies `--venv`. Other allowed folders are created when first needed.
 
-None of these choices is creation-only. `ws projects install [project:<key>] <capability ...>` records the same capabilities (`code`, `paper`, `data`, `python`, `venv`, `slides`) in `project.yaml` and materializes them for an existing project, and `ws projects install --use-project project:<key>` records and installs a package dependency (with its depends-on edge) after the fact; with no capability words it (re)runs everything the file already records. See "Installing capabilities after creation" in the project contract.
+None of these choices is creation-only. `ws projects install [project:<key>] <capability ...>` records the same capabilities (`code`, `paper`, `data`, `python`, `venv`, `slides`) in `project.yaml` and materializes them for an existing project, and `ws projects install --use-project project:<key>` records and installs a package dependency (with its depends-on edge) after the fact; with no capability words it (re)runs everything the file already records. See [Installing project capabilities](project-install.md) for the workflow.
 
 ## Interactive Creation
 
@@ -161,7 +153,7 @@ Project that installs another workspace project as an editable package into its 
 
 ```bash
 ws create project experiment --python --venv \
-  --use-project potential-generator-toolkit:package
+  --use-project project:potential-generator-toolkit:package
 ```
 
 The equivalent interactive workflow is to answer yes to `Create Python virtual environment`, then answer `Install another workspace project into this venv` with yes or with the project REF itself.
@@ -259,7 +251,7 @@ respectively, created exclusively with `ws relate`.
 : Machines where the project is expected to run. Default is `[mac]`.
 
 `sync`
-: Optional routing for `ws sync`. `primary_host` is the authoritative host; `remotes` lists other hosts; `git` lists repo paths synced via git push/pull (including nested repos); `data` lists gitignored heavy paths synced via rsync. See the "Git Boundary and Sync" section of the project contract.
+: Routing metadata for the planned `ws sync` (not an available command). `primary_host` is the authoritative host; `remotes` lists other hosts; `git` lists repo paths synced via git push/pull (including nested repos); `data` lists gitignored heavy paths synced via rsync. See the "Git Boundary and Sync" section of the project contract.
 
 ## Optional Folders
 

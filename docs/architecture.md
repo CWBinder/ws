@@ -1,5 +1,8 @@
 # Architecture
 
+Contributor orientation. For setup and everyday workflows, start with the
+[usage documentation](README.md).
+
 The workspace starts with an empty managed directory scaffold. The directories
 exist immediately; files and first-class objects appear only when content is
 deliberately created or added.
@@ -65,7 +68,7 @@ Active installed system files remain outside the managed content root:
 
 ## Future directions
 
-- server sync — in progress (two-channel git + rsync; see `contracts/project.md` and `docs/projects-wiki-plan.md`)
+- server sync — planned (two-channel git + rsync; see `contracts/project.md` and `docs/projects-wiki-plan.md`)
 - Obsidian project/workspace wiki — in place (`ws wiki build`; see `docs/visualization.md`)
 - richer literature tools — v1 in place (`ws literature`)
 - career / CV system — in place (`ws profile`; see `contracts/career.md`)
@@ -75,7 +78,7 @@ Active installed system files remain outside the managed content root:
 ## Shared object graph
 
 Each domain owns its top-level directory. Relationships are cross-domain and
-therefore have the dedicated workspace-root `relations/` service store.
+therefore have the dedicated workspace-root `relations/` store.
 
 The SQLite index and Obsidian Markdown are derived:
 
@@ -93,7 +96,7 @@ How-to material and normative behavior are deliberately separate:
 
 ```text
 contracts/         invariants code and canonical data must obey (top level)
-docs/guides/       setup and operating procedures
+docs/              setup and operating procedures shared by people and agents
 docs/reference/    exact paths, configuration, and command discovery
 docs/concepts/     architectural reasoning
 docs/policies/     human governance decisions
@@ -101,5 +104,5 @@ docs/policies/     human governance decisions
 
 The parser plus `ws_lib/registry.py` is authoritative for available commands
 and declared effects. `ws help`, `ws capabilities`, and `ws describe` read that
-executable knowledge. Host-specific, non-secret connector selection comes from
+executable knowledge. The workspace root is saved in
 `~/.config/ws/config.yaml`; credentials remain with each provider.

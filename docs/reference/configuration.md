@@ -61,8 +61,8 @@ later:
 
 Override the file locations with `WS_PROJECT_TAXONOMY`,
 `WS_DOCUMENT_TAXONOMY`, `WS_PROFILE_TAXONOMY`, and `WS_FOLDER_ANATOMY` respectively.
-Run `ws check` after changing them. See the [folder anatomy
-contract](../../contracts/folder-anatomy.md) for view rebuilding.
+Run `ws check` after changing them. See [Browsing](../browsing.md) for view
+defaults, optional variations and rebuilding.
 
 ## Optional external tools
 

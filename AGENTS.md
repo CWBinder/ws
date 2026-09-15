@@ -6,33 +6,22 @@ This is the source orientation file for the workspace tooling:
 ~/Projects/ws/
 ```
 
-## First Checks
+## Using ws or contributing to it
 
-Use the smallest relevant file before loading more context:
+This file orients contributors working on ws itself. To operate a user's
+workspace, start with [SKILL.md](SKILL.md) and the shared
+[usage guides](docs/README.md), plus that workspace's local instructions.
 
-```text
-contracts/README.md              contract index
-contracts/workspace.md    workspace layout
-contracts/project.md      project layout and metadata
-contracts/library.md      literature library
-contracts/career.md       CV/career system
-contracts/relations.md    workspace objects, relationships, and graph
-```
+Before changing code, read [the contract index](contracts/README.md) and only
+those domain/shared contracts affected by the change. Contracts specify data
+ownership, invariants and extension/compatibility rules. Put workflows in docs;
+keep parser help authoritative for exact syntax. Update affected templates,
+validators, help/effects and guides alongside the implementation.
 
-The main workspace command is:
-
-```bash
-ws --help
-```
-
-Useful checks:
-
-```bash
-ws check
-ws projects check
-ws search literature <query>
-ws profile make-cv --help
-```
+Useful checks are `ws check cli` for command registration and isolated tests
+under `cli/tests/`. Run data-dependent tests against a temporary workspace and
+configuration; do not use the person's records as fixtures. `ws check` validates
+an actual workspace without repairing it.
 
 ## Main Areas
 

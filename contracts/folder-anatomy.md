@@ -1,5 +1,7 @@
 # Folder Anatomy Contract
 
+Usage and optional view customisation: [Browsing](../docs/browsing.md).
+
 The shape of every derived `by-*` browse tree is data, declared in one
 canonical, hand-edited file at the workspace root:
 
@@ -86,16 +88,14 @@ parent (`year > month`, `field > subfield`) and are refused as ring heads.
 - Rebuilds are deterministic: same canonical data + same file = same tree.
 - `ws check anatomy` (and bare `ws check`) validates the file.
 
-## Commands
+## Extension and compatibility rules
 
-```text
-ws projects views rebuild
-ws documents views rebuild
-ws literature views rebuild
-ws profile views rebuild
-ws resources views rebuild
-ws check anatomy
-```
-
-Rebuilds also run automatically where they always have (document ingestion
-and edits, relate/unrelate).
+- Add facets through the common engine and its canonical item suppliers;
+  domain-specific copies of the view grammar are not allowed.
+- Preserve classifier/kind disambiguation and dependent-facet validation.
+- New shape options require validation before destructive view rebuilding.
+  Unsupported schema versions must fail without replacing existing views.
+- Defaults may evolve for new workspaces; preserve a user's explicit anatomy.
+  A new grammar requires [a compatibility plan](README.md#changing-a-contract).
+- Verify deterministic output, invalid-spec preservation, multi-value paths,
+  unclassified fallbacks and the exclusion of canonical data from writes.

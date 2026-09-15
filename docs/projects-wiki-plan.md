@@ -1,4 +1,8 @@
-# Projects, Sync, and Wiki — Rollout Plan
+# Projects, Sync, and Wiki — Historical Rollout Plan
+
+This file records earlier decisions and completed stages. Some command and
+agent paths below have since changed. Use the [documentation index](README.md)
+for current workflows and [contracts](../contracts/README.md) for current rules.
 
 Followable, check-off rollout for: project tooling hardening, git/sync hygiene, and the Obsidian wiki/visualization layer.
 

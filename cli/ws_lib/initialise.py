@@ -53,6 +53,7 @@ The ws software lives separately at `{paths.SYSTEM}`.
 
 - Run `ws --help` for an overview and `ws check` to validate the workspace.
 - Follow the first example in [Getting started]({paths.SYSTEM / 'GETTING-STARTED.md'}).
+- Find later workflows in the shared [usage guides]({paths.SYSTEM / 'docs/README.md'}).
 - Use `ws search WORDS` to find records, then `ws show KIND:KEY` to inspect one.
 - Add content deliberately. `ws add document FILE --mode copy` keeps the original.
 
@@ -70,7 +71,8 @@ classification vocabulary. The defaults are enough to start.
 
 Workspace root: `{root}`.
 Read the generic ws operating manual at `{paths.SYSTEM / 'SKILL.md'}` when using ws.
-Use `ws help COMMAND` for syntax and `ws describe COMMAND` for declared effects.
+Read shared usage guides at `{paths.SYSTEM / 'docs/README.md'}` for workflows.
+Use `ws help COMMAND` for syntax and `ws describe COMMAND` for a guide and effects.
 Find existing objects with `ws search`, and use their full `kind:key` references.
 Use ws commands to create, ingest, classify and relate records. Read raw content
 at the paths returned by `ws show`. In project folders, follow local `AGENTS.md`.

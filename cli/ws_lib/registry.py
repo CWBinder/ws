@@ -40,7 +40,7 @@ DOMAINS = {
     )
 }
 
-# The five categories of global commands (contracts/cli.md): every command
+# The four categories of global commands (contracts/cli.md): every command
 # that is not a domain specialist belongs to exactly one. An uncategorised
 # command is a defect in the model, not a harmless omission.
 CATEGORIES = {
@@ -912,7 +912,31 @@ def command_record(root: argparse.ArgumentParser, path: list[str]) -> dict:
         "subcommands": children,
         "effects": asdict(effect),
         "contract": contract,
+        "guide": command_guide(canonical),
     }
+
+
+def command_guide(canonical: list[str]) -> str:
+    """Route command discovery to shared usage docs, relative to SYSTEM."""
+    if canonical[:2] == ["projects", "install"]:
+        return "docs/project-install.md"
+    if "views" in canonical:
+        return "docs/browsing.md"
+    return {
+        "init": "GETTING-STARTED.md",
+        "projects": "docs/project-setup.md",
+        "literature": "docs/literature.md",
+        "profile": "docs/profile.md",
+        "documents": "docs/documents.md",
+        "resources": "docs/resources.md",
+        "relations": "docs/relationships.md",
+        "relate": "docs/relationships.md",
+        "unrelate": "docs/relationships.md",
+        "show": "docs/relationships.md",
+        "search": "docs/relationships.md",
+        "wiki": "docs/visualization.md",
+        "completions": "docs/ws-completions.md",
+    }.get(canonical[0], "docs/reference/commands.md")
 
 
 def _first_sentence(text: str) -> str:
@@ -955,6 +979,9 @@ def command_describe(args: argparse.Namespace) -> None:
     print(record["command"])
     if record["purpose"]:
         print(record["purpose"])
+    from .paths import SYSTEM
+
+    print(f"guide: {SYSTEM / record['guide']}")
     if record["contract"]:
         print(f"contract: {record['contract']}")
     if record["subcommands"]:
@@ -1169,6 +1196,10 @@ def print_overview() -> None:
     print("\nFinding your way")
     for command, answer in OVERVIEW_DISCOVERY:
         print(f"  {command:<34}{answer}")
+    from .paths import SYSTEM
+
+    print(f"\nGetting started: {SYSTEM / 'GETTING-STARTED.md'}")
+    print(f"Usage guides: {SYSTEM / 'docs/README.md'}")
 
 
 def command_help(args: argparse.Namespace) -> None:
@@ -1212,7 +1243,7 @@ def add_parsers(sub: argparse._SubParsersAction, root: argparse.ArgumentParser) 
     )
     capabilities.set_defaults(func=command_capabilities, root_parser=root)
 
-    describe = sub.add_parser("describe", help="show contract and side effects for a command")
+    describe = sub.add_parser("describe", help="show usage guide, contract and side effects for a command")
     describe.add_argument("path", nargs="+")
     describe.add_argument("--json", action="store_true")
     describe.set_defaults(func=command_describe, root_parser=root)

@@ -14,8 +14,7 @@ Projects live in the flat canonical store at the projects domain root:
 ```text
 --in DIR
 WS_PROJECTS_DIR
-WS_WORKSPACE_ROOT/projects/items
-~/workspace/projects/items
+<resolved-workspace-root>/projects/items
 ```
 
 That means `ws create project test project` creates `items/test-project/` unless
@@ -29,7 +28,7 @@ use. Path names are refused (`ws create project exampleco-simulations/shuttling`
 fails): grouping is expressed with `fields`, `keywords`, and relation edges,
 and browsed through the derived `by-*` trees, where reorganising never
 changes a project's identity. The tree shapes are declared in
-`~/workspace/folder-anatomy.yaml` (see `contracts/folder-anatomy.md`).
+`folder-anatomy.yaml` in the workspace (see [Browsing](browsing.md)).
 Creating a project from inside an existing project is refused (discovery
 would hide it).
 
@@ -58,11 +57,8 @@ tmp/
 
 `ws create project` creates `code/`, `paper/`, and `data/` only with their corresponding capability flags. `--python` creates Python project metadata and implies `--has-code`; `--venv` creates `.venv` and implies `--python`. Other folders are created when first needed. Git does not preserve empty directories in a clone, and `out/` and `tmp/` are intentionally ignored.
 
-Detailed project file contracts are defined in:
+Follow [Project setup](project-setup.md) for creation, [Installing capabilities](project-install.md)
+for environments and subprojects, and [Configuration](reference/configuration.md)
+for root selection. `ws create project` uses the shipped templates.
 
-```text
-~/Projects/ws/contracts/README.md
-~/Projects/ws/contracts/project.md
-```
-
-Use `~/Projects/ws/templates/project.yaml` and `~/Projects/ws/templates/AGENTS.md` when creating project files.
+Maintainers extending the scaffold should read the [project contract](../contracts/project.md).

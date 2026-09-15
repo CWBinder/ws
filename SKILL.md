@@ -21,7 +21,8 @@ never a name, title, alias, internal id, bare key, or path. REFs come from
 `ws search`. Paths are operands only where a command explicitly ingests a
 file.
 
-Every object is defined by one YAML record. Some objects are only that
+Most objects are defined by one YAML record; literature uses its item folder
+and canonical BibTeX citation. Some objects are only a YAML
 record (person, task, event); others own content: a document owns one
 file, a resource owns a folder of arbitrary files, a project owns a
 working folder, a literature item owns citation/PDF/source material.
@@ -56,8 +57,7 @@ Most read commands take `--json`; prefer it when you parse the output.
 
 ## Relations (the graph)
 
-Creating or adding an object never links it. Edges are made explicitly,
-as a second step:
+Conceptual connections are made explicitly after creation or ingestion:
 
 ```text
 ws relate <kind>:<key> to <kind>:<key> as RELATION WORDS
@@ -66,6 +66,8 @@ ws show relations of <kind>:<key> [--as WORD]
 ```
 
 Relation words are free-form kebab-case (`works-at`, `presented-at`).
+Recording a project package install dependency also records its `depends-on`
+edge; ordinary object creation has no conceptual-link prompts or flags.
 Before inventing one, run `ws relations` — it lists every relation word
 already in use; reuse one when it fits. Duplicate edges are no-ops. When
 you instantiate a new object whose connection to existing objects is part
@@ -76,7 +78,7 @@ of the task, assert those edges immediately after creating it.
 ```text
 ws capabilities KIND     everything one can do with that kind,
                          specialists included (e.g. ws capabilities documents)
-ws describe COMMAND      what one command does: purpose, contract, effects
+ws describe COMMAND      purpose, usage guide, contract and effects
 ws <command> -h          how to type it: operands, flags, allowed values
 ws <domain> taxonomy     classifier vocabulary (documents, literature,
                          projects, profile)
@@ -89,10 +91,10 @@ ws domains / ws relations             the vocabulary listings
 2. `ws show relations of REF` — fetch connected context if needed.
 3. `ws show REF` — locate the object's content, then read the raw files.
 
-Work from this file alone unless it is genuinely insufficient. If a step
-requires a judgement call rather than a command — whether something
-deserves to become an object, where an ingested file belongs, which
-relation word to use — read [workspace values](agent/ws-values.md). Deeper
-rules live in [contracts](contracts/README.md); consult them only when a
-command's behaviour surprises you. Resolve these links relative to this file,
-so the manual works wherever ws is installed.
+For a workflow, read the relevant guide in the shared
+[documentation index](docs/README.md), or follow the guide path from
+`ws describe COMMAND`. People and agents use the same guides, including setup.
+For judgement calls about object boundaries or relation words, read
+[workspace values](agent/ws-values.md). Read [contracts](contracts/README.md)
+when changing ws or checking an implementation guarantee. Resolve these links
+relative to this file so they work wherever ws is installed.

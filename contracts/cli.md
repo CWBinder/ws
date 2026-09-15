@@ -1,5 +1,7 @@
 # CLI contract
 
+Usage: [Command reference](../docs/reference/commands.md).
+
 - Canonical commands are verb-first: the universal verbs (`create`, `add`,
   `list`, `search`, `show`, `edit`, `delete`, `relate`, `unrelate`) come
   directly after `ws`, followed by a REF or a kind word.
@@ -13,7 +15,7 @@
   A REF right after `add` targets the existing object it names:
   `ws add resource:<key> <path>` puts ordinary filesystem content into that
   bundle.
-- Every global command belongs to exactly one of five categories, by what
+- Every global command belongs to exactly one of four categories, by what
   it does: **objects** (work on single objects and their edges — the CRUD
   verbs plus `relations`), **search** (collection queries and reference
   lookup — `list`, `search`, `id`), **maintenance** (keep the derived
@@ -29,30 +31,12 @@
   Any command acting on an existing object accepts only that full REF. Paths
   are operands only where the command explicitly reads or attaches a file.
 
-## Guessing a command
-
-Five rules cover the whole surface; a command that cannot be guessed from
-them is misregistered.
-
-1. Acting on one existing object: `ws <verb> <kind>:<key>` — the REF carries
-   its kind, so nothing else is needed (`ws show`, `ws edit`, `ws delete`).
-2. Entering something: `ws create <kind>` if it does not exist yet,
-   `ws add <kind>` if it already exists somewhere (a person, a file, a DOI).
-3. Many things: `ws list <kind>` and `ws search <kind> <words>`; dropping
-   the kind widens the scope (bare `list` counts every kind, bare `search`
-   searches everything).
-4. Edges: `ws relate A to B as <words>`, undone with `unrelate`, read back
-   with `ws show relations of REF`. Filler words (`to`, `as`, `of`) make the
-   sentence readable and are part of the grammar.
-5. Anything else is a kind specialist: `ws capabilities <kind>` lists the
-   full menu for that kind, specialists included.
-
 ## Discovery
 
 Three surfaces, three questions, no overlap:
 
 - `ws capabilities` — **which** commands exist. Derived from the parser:
-  the global listing (one row per command, grouped under the five
+  the global listing (one row per command, grouped under the four
   categories and then the domains), the kind-scoped view
   (`ws capabilities documents`), the category-scoped view
   (`ws capabilities maintenance`), or, with a longer path, the describe
@@ -61,13 +45,13 @@ Three surfaces, three questions, no overlap:
   command now. Derived from the parser: the usage template, what each
   operand is, each flag's meaning, and for closed value sets the allowed
   values exactly once, with the extension route named.
-- `ws describe <command>` — **what it does and why it is safe to run**:
-  the one-line purpose, the governing contract file, and the declared
+- `ws describe <command>` — **what it does and touches**:
+  the one-line purpose, the usage guide, the governing contract file, and the declared
   effects (reads, writes, external calls, destructive or not). Derived from
   the registry. Describe does not repeat flags — that is help's job.
 
 Bare `ws`, `ws --help`, and bare `ws help` print the same overview, and it
-is a map rather than a tutorial: what you can do (the five categories),
+is a map rather than a tutorial: what you can do (the four categories),
 what the workspace holds (the domains and the relations layer), the three
 grammars with one runnable example each, and how to find your way onward.
 It reads no workspace state, so it prints identically in a broken or
@@ -81,7 +65,7 @@ workspace holds, and both are derived rather than hand-maintained:
 `ws domains` (the homes that own objects) and `ws relations` (the graph
 layer, listing the relation vocabulary actually in use). Category words
 are operands of `capabilities`, not commands of their own. See
-`docs/concepts/command-categories.md` for the model.
+[Command categories](../docs/concepts/command-categories.md) for the model.
 
 ## Templates and placeholders
 
@@ -152,3 +136,15 @@ Enforced by `ws check cli`:
 - Every command resolves to a governing contract, and every writing
   command declares its own effects entry (the generic verb entry is not
   enough for a writer).
+
+## Extension and compatibility rules
+
+- Register new commands through the parser and registry, with a category,
+  purpose, contract, usage-guide route and declared effects for writers.
+- Preserve canonical verb/kind grammar and flags-last validation. New aliases
+  must not fork the implementation or create another durable store.
+- Discovery JSON may gain additive fields; preserve existing field meanings.
+  Command removals or incompatible operand/output changes require the
+  [shared compatibility process](README.md#changing-a-contract).
+- Keep help generated from actual parser options. Verify the full command
+  surface and affected execution behaviour when changing registration.

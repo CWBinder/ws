@@ -1,11 +1,14 @@
 # Profile and CV Contract
 
+Usage: [Profile records and CVs](../docs/profile.md).
+This contract governs profile storage, generation and extension boundaries.
+
 `~/workspace/profile/` owns canonical personal and career material. The domain
 uses the same object-store and derived-view pattern as the other domains:
 
 ```text
 profile/
-  items/<profile-id>.yaml       one canonical profile object per file
+  items/<key>.yaml       one canonical profile object per file
   profile-taxonomy.yaml        allowed types, in default CV section order
   by-type/  by-organisation/    generated symlink rings; disposable
   applications/                free-form material for individual applications
@@ -38,7 +41,7 @@ volunteering
 ```
 
 The vocabulary is data, not a closed enum: extend it with
-`ws profile add-type <type>` or by editing `profile-taxonomy.yaml`. There may
+the taxonomy writer or direct edits to `profile-taxonomy.yaml`. There may
 be at most one active `identity` object. Absent status means active; merged
 tombstones are excluded from generated CVs.
 
@@ -58,9 +61,9 @@ without inventing a parallel storage system.
 
 ## Relationships and publications
 
-Pointers to another workspace object are relations, never embedded foreign
-keys. Creation supports direct relations to literature, organisations, events,
-and projects. Defaults are:
+Pointers to another workspace object are explicit relations, never embedded
+foreign keys. Creation does not write those links. The established relation
+conventions consumed by profile rendering are:
 
 ```text
 publication --represents--> literature
@@ -74,34 +77,7 @@ source of truth. This replaces author-name matching and copied
 `own-publications.bib` files. A publication without a literature relation may
 use its own fallback metadata.
 
-## Commands
-
-```bash
-ws profile init
-ws create profile "Alex Example" --type identity --email me@example.org
-ws create profile "DPhil Physics" --type education --bullet "Research bullet"
-ws create profile "Paper title" --type publication
-ws relate profile:<paper-key> to literature:<key> as represents
-ws list profile [--type education]
-ws show profile:<key>
-ws edit profile:<key> --add-bullet "Improved bullet"
-ws profile taxonomy
-ws profile add-type <type>
-ws profile views rebuild
-```
-
-`create` and `edit` are the normal writers. Direct YAML editing is permitted
-for fields the CLI does not expose, provided the universal fields and taxonomy
-remain valid. `ws check profile` validates records, types, and identity
-cardinality.
-
 ## Comprehensive CV generation
-
-```bash
-ws profile make-cv --out <directory>
-ws profile make-cv --out <directory> --no-build  # source only
-ws profile make-cv --spec <file> --out <directory>
-```
 
 `make-cv` writes one long, self-contained, editable `cv.tex` containing every
 active profile object, grouped in taxonomy order, and compiles a ready-to-open
@@ -126,23 +102,6 @@ wrong profile type are errors. Canonical profile objects remain unchanged.
 Application-specific prose belongs in the spec; reusable facts belong in the
 profile objects.
 
-Example:
-
-```yaml
-schema_version: 1
-variant: classic
-headline: Theoretical physicist with extensive teaching experience
-summary: >
-  A short application-specific introduction.
-sections:
-  - type: education
-    items:
-      - ref: profile:dphil-in-quantum-technologies
-      - ref: profile:msc-theoretical-and-computational-physics
-        name: MSc studies in Theoretical and Computational Physics
-        bullets: []
-```
-
 Generated TeX is self-contained and editable, but reproducible application CVs
 should normally be changed through the spec or canonical profile objects and
 then regenerated. Tailoring must not delete or distort canonical profile data.
@@ -161,3 +120,18 @@ artifacts are ignored. The generated wiki may expose a professional name,
 headline, description, skills, type counts, and explicitly related
 publications, but never contact details, date of birth, address, provenance,
 or application contents.
+
+## Extension and compatibility rules
+
+- New profile types extend taxonomy data; generators must not assume a closed
+  type enum. Preserve taxonomy ordering and the single-active-identity rule.
+- Additional scalar/list facts are allowed without a parallel record store.
+  Preserve universal identity fields and validate types/cardinality on checks.
+- New CV display fields or variants require corresponding spec validation.
+  A render override must never mutate its canonical source object.
+- New wiki output must retain the stated privacy exclusions. Adding
+  a field to a record does not authorise exposing it in generated views.
+- Breaking schema/spec changes require the shared compatibility/migration
+  process in [the contract index](README.md#changing-a-contract).
+- Verify spec rejection before writes, overwrite protection, inactive-record
+  filtering, publication citation ownership and privacy filtering when changed.

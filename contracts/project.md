@@ -1,5 +1,8 @@
 # Project Contract
 
+Usage: [Project setup](../docs/project-setup.md) and
+[installing capabilities](../docs/project-install.md).
+
 The projects domain root holds the flat canonical store, the derived browse
 trees, and the taxonomy:
 
@@ -15,9 +18,11 @@ trees, and the taxonomy:
 ```text
 --in DIR
 WS_PROJECTS_DIR
-WS_WORKSPACE_ROOT/projects/items
-~/workspace/projects/items
+<resolved-workspace-root>/projects/items
 ```
+
+The workspace root resolves from environment, saved configuration, then the
+default; see [configuration](../docs/reference/configuration.md).
 
 `WS_PROJECTS_DIR` points at the store; the domain root is its parent unless
 `WS_PROJECTS_DOMAIN` overrides it.
@@ -73,7 +78,7 @@ CLAUDE.md
 .gitignore
 ```
 
-`CLAUDE.md` is a symlink to `AGENTS.md` (on Windows, an `@AGENTS.md` import instead), so Claude Code reads the same instructions. See the agent contract's `CLAUDE.md` section.
+`CLAUDE.md` is a symlink to `AGENTS.md` (on Windows, an `@AGENTS.md` import instead), so Claude Code reads the same instructions. Both files must convey the same project instructions.
 
 ## Allowed Optional Top-Level Folders
 
@@ -198,11 +203,8 @@ edge for it — one statement about the world, stated once.
 
 Every project owns its own virtual environment. Do not reuse another project's `.venv`; install local package dependencies into the current project's `.venv` instead.
 
-In interactive project creation, package dependencies should be explained as an editable install into the new project's own venv. The wizard should show the command before it is run:
-
-```bash
-.venv/bin/python -m pip install -e ~/Projects/other-project
-```
+The interactive creation wizard must explain an editable dependency install
+into the new project's own venv and show the command before execution.
 
 ### Custom install steps (`package_install`)
 
@@ -221,30 +223,17 @@ venv interpreter and `{path}` is the dependency's installable path. A failing
 step aborts that dependency's install with a warning. The recipe lives with the
 project that needs it, so consumers stay generic.
 
-### Installing capabilities after creation (`ws projects install`)
+### Capability materialization
 
-Nothing is settable only at creation time. `ws projects install
-[project:<key>] [capability ...]` makes the working tree match what
-`project.yaml` records, and is how capabilities are added to an existing
-project. Named capabilities — `code`, `paper`, `data`, `python`, `venv`,
-`slides` — are first recorded in `project.yaml` (each pulls in what it
-needs: slides → venv → python → code, mirroring the creation wizard), then
-everything the file records is (re)materialized: capability folders, Python
-scaffolding, the venv, recorded package dependency installs, and the slide
-generator.
+Install records requested capabilities and their prerequisites, then materializes
+recorded state. The chain is slides → venv → python → code. Replaying existing
+state is supported; install never unsets capabilities. Every project owns its
+venv except a structural subproject, which shares its parent's.
 
-With no capabilities it simply (re)runs the recorded state — use it after
-cloning, after recreating `.venv`, or after editing `project.yaml` by hand.
-The project defaults to the enclosing one; a project whose name collides
-with a capability word must be addressed as `project:<key>`.
-
-Package dependencies retrofit the same way: `ws projects install
---use-project project:<key>[:package[:path]]` (repeatable, same grammar as
-at creation) records the `project_dependencies` entry, asserts the venv
-chain, creates the depends-on edge — the same one statement, stated once —
-and installs. An entry already recorded is skipped, and an unresolvable
-dependency REF fails before anything is written. Removal is manual in both
-directions: `install` extends and materializes, it never unsets.
+Package dependency additions use the creation grammar and write their install
+entry and `depends-on` edge. Duplicate entries are skipped. Unresolvable
+references fail before writes. The enclosing project is the default target,
+including when invoked within a subproject.
 
 `has_slides: true` means the project builds decks with the `slide_factory`
 generator: creation and `ws projects install` editable-install it from
@@ -255,13 +244,6 @@ API reference are documented in that separate tool's README.
 Literature links are canonical `references` edges in the relations service, created exclusively with `ws relate project:<key> to literature:<ItemKey> as references`. Use them for structurally important project literature, not every citation in a manuscript. A `related_literature` list in project.yaml is read-only legacy: still validated by `ws projects check`, no longer written. Bibliographic details remain in the literature domain; narrative project detail remains in the project README.
 
 Allowed `status` values are defined in `statuses.md`.
-
-Use `ws create project`, `ws projects taxonomy`, and `ws projects
-add-field`/`add-subfield`/`add-type` for project creation and taxonomy
-maintenance. `add-subfield` takes its parent field first.
-
-Use `ws show project:<key>` to inspect project metadata and its
-cross-references to other projects and literature items.
 
 ## `README.md`
 
@@ -363,22 +345,24 @@ Use:
 
 ## Browse Views
 
-The `by-*` trees sit at the projects domain root, beside the `items/` store,
-rebuilt by `ws projects views rebuild`. Their shapes are declared in the
-folder anatomy file (see `folder-anatomy.md`); the default ring set is
+Views are relative symlinks into the canonical store. They never change project
+identity, and collisions receive numeric suffixes. Taxonomy values and relations
+supply facets; shape, defaults and rebuilding follow
+[folder anatomy](folder-anatomy.md).
 
-```yaml
-rings: [type, organisation, event, status, field > subfield]
-depth: 2
-```
+## Extension and compatibility rules
 
-so each value folder holds its projects flat plus nested `by-*` rings for
-the facets not yet used along the path, e.g.
-`by-organisation/<org title>/by-type/<type>/<leaf>`, with subfields only
-beneath their own field. `unclassified/` is the fallback bucket at the first
-layer, for projects missing the value; deeper rings simply omit them.
-Views are disposable and never canonical: entries are relative symlinks
-into the `items/` store, name collisions get numeric suffixes, and nothing
-may be filed into a view by hand. `ws list projects
---type/--field/--status/--keyword` answers the same questions without the
-filesystem.
+- New project capabilities must declare prerequisite metadata and support both
+  creation and subsequent materialization. Preserve per-project environments
+  and the structural subproject exception.
+- New package recipe features must preserve interpreter/path ownership and
+  failure reporting. Do not reinterpret conceptual edges as install recipes.
+- Preserve flat project identity and reads of legacy nested projects and
+  retired non-installing dependency kinds. Do not resume writing legacy
+  relationship lists into project metadata.
+- Changes to required scaffold files, metadata or identity require
+  [a compatibility/migration plan](README.md#changing-a-contract), with templates
+  and validators updated together. Proposed sync behaviour is not implemented
+  merely because routing metadata exists.
+- Verify capability prerequisites, invalid dependency handling, subproject
+  discovery and Git boundaries when changing the associated implementation.

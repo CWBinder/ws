@@ -1,13 +1,15 @@
 # Documents contract
 
+Usage: [Filing documents](../docs/documents.md).
+
 Documents form a managed catalogue. `ws add document` creates one stable
 YAML record under `documents/items/`.
 
 The default mode moves the source file into `workspace/documents/files/`.
 `--mode copy` preserves the source and copies it there; `--mode reference`
 explicitly keeps the source outside the workspace. The metadata record stores
-the effective path. Requested endpoint links are written as canonical
-relationship records.
+the effective path. Relationships are written separately as canonical
+edges; ingestion takes no endpoint-linking flags.
 
 `--ensure` makes `add` idempotent by effective path: when the stored path
 matches exactly one existing record, that record is returned instead of
@@ -15,33 +17,12 @@ creating a new one. Records carry no content digest; duplicate detection
 during a bulk registration is the migration pass's job, computed transiently
 rather than stored.
 
-Raw files remain in `documents/files/`. Derived browse views contain relative
-symlinks to those files; their shapes are declared in the folder anatomy file
-(see `folder-anatomy.md`); the default ring set is
+## Derived views
 
-```yaml
-rings: [type, organisation, event, project, year > month]
-depth: 2
-```
-
-so each value folder holds its documents flat plus nested `by-*` rings for
-the facets not yet used along the path:
-
-```text
-documents/by-type/<type-or-unclassified>/
-documents/by-type/<type>/by-year/<year>/by-month/<MM-Month>/
-documents/by-year/<year>/by-organisation/<organisation>/
-documents/by-organisation/<organisation>/by-type/<type>/
-```
-
-`unclassified/` is the fallback bucket at the first layer; deeper rings
-simply omit documents missing the facet, and empty rings are never
-created. Ingestion and
-document edits rebuild these views automatically. Organisation folders are
-derived from document-to-organisation relationships, so one document may
-appear under multiple organisations without duplicating a file.
-`ws documents views rebuild` recreates the views from canonical records,
-relationships, and the anatomy file.
+Managed files remain in `documents/files/`. Browse entries are relative symlinks
+whose shape is governed by [folder anatomy](folder-anatomy.md). Ingestion and
+edits rebuild the views. Related-object facets come from canonical edges;
+multiple appearances never duplicate the document file.
 
 ## Classification
 
@@ -83,14 +64,18 @@ with the record's deletion, so the operation stays recoverable; external
 tombstones are different: `merged` records from duplicate folding stay,
 because their REFs redirect.
 
-Manage the vocabulary with:
-
-```text
-ws documents types list
-ws documents types add TYPE
-ws documents types rename TYPE --to NEW-TYPE
-ws documents types remove TYPE
-```
-
 Renaming a type updates matching canonical document metadata to the new
 value. Removing a type is refused while any document uses it.
+
+## Extension and compatibility rules
+
+- Additional classifiers must have one canonical representation. Continue
+  deriving year/month from date and organisations from relationships.
+- Retain reads of legacy `document_type`; new writers use `classification.type`.
+  Removing legacy support or changing paths/identity requires
+  [an explicit migration plan](README.md#changing-a-contract).
+- New ingestion or deletion modes must state ownership of the source file.
+  Preserve external files on deletion and preserve the distinction between
+  deletion and merge redirects.
+- Verify validation/taxonomy changes, effective-path idempotency, relationship
+  cleanup and managed versus external file handling when extending writers.

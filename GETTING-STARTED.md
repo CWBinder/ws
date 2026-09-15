@@ -89,7 +89,7 @@ replace existing settings. Read command help when an option is unclear.
 
 - `ws capabilities documents`: available document operations.
 - `ws help add document`: exact arguments and options.
-- `ws describe add document`: what it reads and changes.
+- `ws describe add document`: usage guide and what it reads and changes.
 - [Concepts](docs/concepts/workspace-concepts.html): a visual explanation.
 - [Configuration](docs/reference/configuration.md): saved root and overrides.
 - [Documentation index](docs/README.md): optional guides for later.

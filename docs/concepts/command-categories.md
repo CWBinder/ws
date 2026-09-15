@@ -1,12 +1,12 @@
 # Command categories
 
 Two axes describe the whole CLI. The first classifies what you can *do* —
-every global command belongs to exactly one of five categories, by intent.
+every global command belongs to exactly one of four categories, by intent.
 The second names what the workspace *holds* — the domains that own objects
 and the relations layer that owns edges. A command that fits no category is
 a defect in the model, not a harmless omission (contracts/cli.md).
 
-## What you can do: five categories
+## What you can do: four categories
 
 **objects** — work on single objects and their edges: the CRUD verbs.
 `create` mints what does not exist yet, `add` ingests what already does,
@@ -22,10 +22,11 @@ index, and `ws id resolve`/`ws id show` turn a reference into the object
 it names. Different inputs, different outputs — which is why CRUD's
 per-record R does not cover them.
 
-**maintenance** — keep the derived layers coherent: `ws index rebuild`
+**maintenance** — initialise the workspace and maintain derived state:
+`ws init` creates missing infrastructure and saves the root; `ws index rebuild`
 (the search cache), `ws wiki build` (the Obsidian view), and `ws check`
-(validate state against the contracts). Everything maintenance touches can
-be regenerated from the canonical stores.
+(validate state against the contracts). Index and wiki output can be regenerated from canonical stores. Initialisation
+preserves existing canonical settings and local instructions.
 
 
 **discovery** — learn the command surface from the CLI itself: `ws help`
@@ -34,7 +35,7 @@ be regenerated from the canonical stores.
 knowledge, delivered while typing), and `ws domains` (the listing below).
 
 The categories are also how the listings are organised: bare
-`ws capabilities` groups every command under these five headings and then
+`ws capabilities` groups every command under these four headings and then
 the domains, and a category word scopes it (`ws capabilities
 maintenance`). Category words are operands of `capabilities`, not commands
 of their own.
@@ -46,13 +47,10 @@ maintenance and discovery commands are namespace-first
 
 ## What the workspace holds: domains and relations
 
-**Domains** own the objects. Each is the home of a kind — things with
-`kind:key` REFs that can be shown, related, and deleted. There are eight,
-holding nine kinds: most host exactly one, `logistics` hosts three (person,
-organisation, event), and `agents` is the special case — it owns a canonical
-store of hand-authored roles and skills, but those are tooling configuration
-rather than workspace objects, so it hosts no kind and its contents carry
-names instead of REFs. Delete a domain's store and objects are gone.
+**Domains** own the objects. There are seven domains holding nine kinds;
+`logistics` holds person, organisation and event. The others each hold one kind.
+Agent roles and skills belong to the independent roster tool. Delete a
+canonical domain store and its objects are gone.
 A domain word hosts only the specialists that exist for its kind alone:
 
 ```bash
@@ -63,23 +61,22 @@ ws logistics people merge person:<key>    fold a duplicate into a canonical
 ws profile make-cv                        render the CV
 ```
 
-`ws domains` lists them: `projects`, `agents`, `tasks`, `literature`,
+`ws domains` lists them: `projects`, `tasks`, `literature`,
 `documents`, `resources`, `logistics`, `profile`.
 
 **Relations** is the edge layer. It owns every edge between objects — and
 unlike everything maintenance rebuilds, a
 hand-asserted edge exists nowhere else and can never be regenerated. Edges
-are written only by `ws relate` and `ws unrelate`, and read with
+are asserted with `ws relate`, removed with `ws unrelate`, updated with
+`ws relations edit`, and read with
 `ws show relations of REF`. Bare `ws relations` lists the relation
 vocabulary actually in use, with the number of edges carrying each word.
 
 ## Ownership, in one question
 
 What is lost if the store is deleted? A domain loses its objects; the
-relations layer loses edges that cannot be re-derived from anything. The
-maintenance targets lose only caches you rebuild.
-sessions you re-authenticate. The category verbs themselves own nothing.
-That question decides what gets backed up; the five categories decide how
+relations layer loses edges that cannot be re-derived from anything. The index and generated wiki lose only caches you rebuild. The category verbs themselves own nothing.
+That question decides what gets backed up; the four categories decide how
 the surface is presented and guessed.
 
 ## Grammar

@@ -5,7 +5,8 @@ Read first:
 - project.yaml
 - this file
 - <ws-root>/SKILL.md when operating on workspace records
-- <ws-root>/contracts/README.md when detailed contracts are needed
+- <ws-root>/docs/README.md for usage workflows
+- <ws-root>/contracts/README.md when changing ws or checking an implementation guarantee
 
 Rules:
 - do not create unauthorized top-level folders

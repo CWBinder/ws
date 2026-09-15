@@ -39,8 +39,8 @@ document, connect them and find it again.
 
 ## Find your way
 
-- [Documentation](docs/README.md): explanations and guides.
-- `ws help COMMAND`: syntax; `ws describe COMMAND`: declared effects.
+- [Documentation](docs/README.md): shared guides for people and agents.
+- `ws help COMMAND`: syntax; `ws describe COMMAND`: guide and declared effects.
 - [SKILL.md](SKILL.md): the operating manual for agents using ws.
 - [AGENTS.md](AGENTS.md) and [contracts](contracts/README.md): contributing to ws.
 

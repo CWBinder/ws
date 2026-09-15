@@ -1,5 +1,7 @@
 # Objects and Relationships Contract
 
+Usage: [Connecting and finding records](../docs/relationships.md).
+
 Relations is its own layer, not a domain and not a service. It is not a
 domain because an edge carries an id rather than a REF, belongs to no kind,
 and is never shown or listed as an object. It is not a service because a
@@ -37,12 +39,12 @@ Canonical cross-domain edges have their own workspace-root store:
   rel_01K....yaml
 ```
 
-Override the root with `WS_DATA_DIR`. Individual domain directories also have
-`WS_*_DIR` overrides; see `ws_lib/paths.py`.
+The configured workspace root determines these default locations.
+Individual domains also have environment overrides; see
+[configuration](../docs/reference/configuration.md).
 
-Override only the relationship store with `WS_RELATIONS_DIR`. Migrate records
-from the former `documents/Workspace/relations/` location with
-hand, into the canonical relations store.
+Override only the relationship store with `WS_RELATIONS_DIR`. Legacy records from `documents/Workspace/relations/` require explicit migration
+into this store; readers must not establish a second canonical edge store.
 
 The catalog indexes each canonical domain store through adapters instead of
 copying objects into a central metadata folder.
@@ -55,12 +57,7 @@ The one derived exception: a project `--use-project` install dependency
 records its own depends-on edge.
 
 Relation types are free-form kebab-case; `ws relate` lowercases and hyphenates
-whatever follows `as` (or `--as`). Both endpoints must be canonical REFs:
-
-```bash
-ws relate person:maria-schwarz to organisation:example-institute as works at
-ws relate person:maria-schwarz organisation:example-institute --as works-at
-```
+whatever follows `as` (or `--as`). Both endpoints must be canonical REFs.
 
 `ws unrelate` accepts the same endpoint grammar. Names, aliases, paths, and
 internal IDs are not accepted; use `ws search <query>` to discover each REF.
@@ -119,13 +116,7 @@ Do not duplicate a relationship into both endpoint object files.
 `ws show relations of REF`, `ws show relations of`, and `ws wiki build`
 assemble incoming and outgoing relationships at read time.
 
-The command:
-
-```bash
-ws relate SUBJECT_REF OBJECT_REF --as RELATION
-```
-
-is directional. It reads “SUBJECT relates to OBJECT as RELATION.” Repeating an
+A relation is directional. It reads “SUBJECT relates to OBJECT as RELATION.” Repeating an
 identical relationship is idempotent. `ws unrelate` deletes the record and
 prints the exact `ws relate` command that would restore it (the store is not
 under git, so the hint is the undo path).
@@ -140,17 +131,17 @@ relationship records do not become Obsidian graph nodes. A canonical edge may
 be rendered in both endpoint notes because the generated Markdown is
 rebuildable.
 
-## Integrity
+## Integrity and extension
 
-Use:
+Checks report problems without repairing or deleting data. Both endpoints
+must resolve; object deletion must remove incident edges as specified by the
+object contract.
 
-```bash
-ws check
-ws check projects
-ws check catalog
-ws check logistics
-ws check relations
-ws check index
-```
-
-Checks never repair or delete data.
+- New relation words extend the open vocabulary without a schema change.
+- New edge attributes must not duplicate endpoint facts or introduce a
+  lifecycle status; validity dates remain distinct from existence.
+- New domain adapters resolve canonical objects in place. They must preserve
+  public REFs and internal-ID storage where available.
+- Identity or edge-format changes require [a compatibility/migration plan](README.md#changing-a-contract).
+  Preserve idempotent assertion, directional semantics, merge redirects and
+  restore information on removal; verify these boundaries when changing them.

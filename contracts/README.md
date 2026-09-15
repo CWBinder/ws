@@ -1,45 +1,64 @@
-# Workspace Contracts
+# Workspace contracts
 
-This is the index for stable workspace contracts.
+Contracts define what implementations must preserve and how they may be
+extended. Read them when changing ws, its schemas, adapters, validators or
+generators. People and agents using ws share the [usage documentation](../docs/README.md).
 
-Use this file to choose the smallest relevant contract file instead of loading every rule into context.
+A contract contains canonical ownership, schema/identity rules, observable
+guarantees, failure boundaries, and extension/compatibility requirements.
+Small schema or boundary examples belong here. Setup sequences, command
+walkthroughs and advice about which workflow to choose belong in docs.
 
-## Contract Files
+## Find the governing contract
 
-Core contracts cover the CLI, workspace, projects, tasks,
-documents, resources, literature, logistics, profile, relations, search,
-check, wiki, and statuses. Agent-role management belongs to the independent
-roster tool.
+| Change | Contract | Usage or explanation |
+|---|---|---|
+| Installation, roots, scaffold | [Workspace](workspace.md) | [Getting started](../GETTING-STARTED.md), [configuration](../docs/reference/configuration.md) |
+| Command registration and discovery | [CLI](cli.md) | [Command reference](../docs/reference/commands.md) |
+| Identity, lifecycle, adapters | [Objects](objects.md), [statuses](statuses.md) | [Connecting and finding](../docs/relationships.md) |
+| Projects and environments | [Project](project.md) | [Project setup](../docs/project-setup.md), [capabilities](../docs/project-install.md) |
+| Literature | [Library](library.md) | [Literature guide](../docs/literature.md) |
+| Documents | [Documents](documents.md) | [Filing documents](../docs/documents.md) |
+| Resources | [Resources](resources.md) | [Bundles](../docs/resources.md) |
+| Profile and CV output | [Career](career.md) | [Profile and CVs](../docs/profile.md) |
+| Tasks and contacts/events | [Tasks](tasks.md), [logistics](logistics.md) | [Command reference](../docs/reference/commands.md) |
+| Cross-domain edges | [Relations](relations.md) | [Connecting records](../docs/relationships.md) |
+| Folder views | [Folder anatomy](folder-anatomy.md) | [Browsing](../docs/browsing.md) |
+| Derived index, wiki, validation | [Search](search.md), [wiki](wiki.md), [check](check.md) | [Command reference](../docs/reference/commands.md), [wiki guide](../docs/visualization.md) |
 
-Contracts state invariants. Start with [Getting started](../GETTING-STARTED.md)
-for setup and the [documentation index](../docs/README.md) for explanations.
-Use the CLI help for exact command syntax.
+`projects.md`, `literature.md` and `profile.md` are namespace entry points
+that link to the detailed contracts above. They do not define another schema.
+Roster and inbox have independent repositories and contracts.
 
-## Template Authority
+## Shared invariants
 
-Templates live in:
+- Each durable fact has one canonical owner. Generated compatibility files,
+  indexes and views may copy it only when they remain rebuildable.
+- Keep structured state in the domain's declared format, and instructions or
+  notes in Markdown. Literature citation truth remains BibTeX.
+- Personal settings, records and credentials belong outside the shared source.
+- Templates in [templates/](../templates/) must agree with their contract and
+  the code that generates records from them.
+- Optional extensions must not make previously valid records invalid merely
+  because a new field is absent.
 
-```text
-~/Projects/ws/templates/
-```
+## Changing a contract
 
-`ws` should generate files from those templates and the relevant contract file.
+1. Identify the canonical owner and the guarantee the change affects. Read
+   the domain contract and relevant shared contracts before implementation.
+2. Prefer additive optional fields, taxonomy values and adapters that preserve
+   existing identity and semantics. State defaults for missing new fields.
+3. For changed keys, identity, storage paths, required fields or command
+   semantics, document compatibility and migration explicitly: what old data
+   remains readable, how it converts, what happens on failure, and how users
+   recover. Update schema versions when the format changes incompatibly.
+   Editing a contract alone does not migrate existing user data.
+4. Update the implementation, templates, validators, command effects/help and
+   relevant usage guide together. Keep command syntax generated from the
+   parser; docs show selected workflows rather than another exhaustive list.
+5. Verify the affected guarantees with appropriate tests, especially old-data
+   reads, rejected writes, identity preservation and canonical/derived boundaries.
+   Record any deliberate compatibility break in the user-facing change notes.
 
-## Read Guidance
-
-- The universal object model (ref, key, internal id, kind, name, aliases):
-  read `objects.md` first.
-- Creating or validating the workspace root: read `workspace.md`.
-- Creating or validating a project: read `project.md` and `statuses.md`.
-- Creating or validating literature items: read `library.md`.
-- Working on the career folder or CV generation: read `career.md`.
-- Creating objects or cross-domain relationships: read `relations.md`.
-- Updating status fields: read `statuses.md`.
-
-## General Rules
-
-- Prefer plain Markdown and YAML.
-- Keep machine-readable identity/state in YAML.
-- Keep human-readable instructions and notes in Markdown.
-- Do not duplicate the same durable fact across multiple files unless one file is a generated copy for tool compatibility.
-- Add local sections when needed, but do not rename or remove required keys without updating the relevant contract.
+These are contributor requirements. A user's supported changes to taxonomy,
+profile facts or browse settings do not require editing the shared contracts.

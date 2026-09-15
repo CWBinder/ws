@@ -1,16 +1,32 @@
 # Visualization and Wiki
 
-How the workspace, projects, and agent structure are visualized and browsed.
+Use this guide to generate a browsable Markdown view of workspace records and
+their connections. For file-manager views, see [Browsing](browsing.md).
+
+## Build and open
+
+```bash
+ws wiki build
+```
+
+Open your configured workspace folder as a vault in Obsidian if you use it,
+then open `wiki/generated/Workspace.md`. The generated files are ordinary
+Markdown and can also be read in a text editor. ws does not install Obsidian.
+Use its graph or local graph to follow the generated links.
+
+Rebuild after changing canonical records. Keep hand-written notes outside
+`wiki/generated/`: rebuilding replaces that directory's contents. Paths below
+show the default `~/workspace`; substitute your configured root if different.
 
 ## Model
 
 - **Canonical source of truth:** project YAML, literature item records, the career profile, registered workspace object YAML, relationship YAML, and project README files.
 - **Generated view:** Markdown notes that Obsidian renders. These are a *view*, never a second source of truth. They are regenerated from the canonical YAML and may be deleted and rebuilt at any time.
-- **Tool:** Obsidian (already installed). No custom graph-drawing code — Obsidian draws the graph from `[[wikilinks]]`.
+- **Optional viewer:** Obsidian draws a graph from `[[wikilinks]]`; it is a separate installation.
 
-## Locked decisions
+## Current output
 
-- **Obsidian only.** No static HTML graph by default. A static HTML export may be added later *only* if an app-free, shareable artifact is ever needed.
+- ws generates Markdown with Obsidian-style wikilinks. It does not currently generate a static HTML graph.
 - **Single workspace vault.** One vault rooted at `~/workspace`. Per-project views come from Obsidian's local-graph view, not separate vaults.
 
 ## Vault layout
@@ -69,8 +85,10 @@ Each generated note carries YAML frontmatter (for tags/grouping) and `[[wikilink
 ## Git and Obsidian config
 
 - `generated/` is gitignored (fully regenerable).
-- `.obsidian/` (Phase 7b) is optional. If tracked at all, keep it minimal and stable; personal/volatile settings stay local.
+- `.obsidian/` is optional. If tracked at all, keep it minimal and stable; personal/volatile settings stay local.
 
-## Status
+## Implementation reference
 
-Implemented: `ws wiki build` generates the `generated/` layer (project, literature, career, and field node-notes plus the index MOCs) from canonical YAML. It clears and rebuilds `generated/` on each run. See `projects-wiki-plan.md`.
+ `ws wiki build` generates the `generated/` layer (project, literature, career, and field node-notes plus the index MOCs) from canonical YAML. It clears and rebuilds `generated/` on each run. Maintainers should read the [wiki contract](../contracts/wiki.md) and the
+[profile privacy rules](../contracts/career.md#privacy-and-git). The
+[earlier wiki plan](projects-wiki-plan.md) records design history.

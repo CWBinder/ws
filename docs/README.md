@@ -4,32 +4,49 @@
 relationships between them. This documentation explains how to use that model;
 the installed CLI supplies the current command syntax.
 
-## For people
+## Start here: people and agents
 
-1. **Understand the model:** open [Workspace Concepts](concepts/workspace-concepts.html)
-   in a browser. It explains objects, classifications, relationships and derived
-   views using fictional examples. It is optional learning material, not a
-   required agent prompt or the complete command reference.
-2. **Set up:** follow [Getting started](../GETTING-STARTED.md) to install with
-   a local `.venv` and initialise a workspace with `ws init`. Defaults are enough
-   to start; no agent tools or personal profile are required.
-3. **Do a first task:** follow [Project Setup](project-setup.md) to create a
-   project. This guide assumes the CLI is already available. Use `ws help add
-   document` or `ws help create task` for other starting points.
-4. **Learn as needed:** use [project workflows](projects.md),
-   [views and the wiki](visualization.md), and [configuration](reference/configuration.md).
+1. **Set up:** [Getting started](../GETTING-STARTED.md) covers installation,
+   initialisation and a small tutorial. An agent can follow the same file to
+   assist setup. Defaults suffice; a personal profile and agent integration
+   are optional.
+2. **Understand the model:** [Workspace Concepts](concepts/workspace-concepts.html)
+   explains objects, classifications, relationships and views visually. It is
+   optional background. Text explanations cover
+   [relationships](concepts/relationships.md),
+   [document classification](concepts/document-classification.md) and
+   [command categories](concepts/command-categories.md).
+3. **Choose a task:** read one of the guides below. Use terminal help for exact
+   syntax; examples in guides explain a workflow rather than list every flag.
 
-## For agents using ws
+## Usage guides
 
-Start with the shipped [ws skill](../SKILL.md), plus the user's own agent
-instructions and the current project's `AGENTS.md`. The skill explains the
-operating procedure; [workspace values](../agent/ws-values.md) explain judgement
-calls. Discover commands through the CLI and read only the relevant
-[contract](../contracts/README.md) when deeper rules are needed.
+| Task | Guide |
+|---|---|
+| Create and organise a project | [Project setup](project-setup.md), [project workflows](projects.md) |
+| Set up a project's environment or subproject | [Installing capabilities](project-install.md) |
+| File and classify a document | [Documents](documents.md) |
+| Keep a bundle of supporting files | [Resources](resources.md) |
+| Find, import, read and connect papers/books | [Literature](literature.md) |
+| Maintain career facts and generate a CV | [Profile and CVs](profile.md) |
+| Search for context and connect records | [Relationships and retrieval](relationships.md) |
+| Browse folders or change their arrangement | [Browsing](browsing.md) |
+| Generate a Markdown wiki | [Wiki](visualization.md) |
+| Inspect paths or optional settings | [Configuration](reference/configuration.md) |
+| Learn commands, including tasks and contacts | [Command reference](reference/commands.md) |
+| Enable terminal completion | [Shell completion](ws-completions.md) |
 
-The repository's root [AGENTS.md](../AGENTS.md) is contributor orientation for
-working on ws itself. It is not a person's workspace profile. The concepts
-page is not something every agent needs to load.
+## Agent entry point and contributor entry point
+
+Agents using ws start with [SKILL.md](../SKILL.md), the user's own instructions
+and the current project's `AGENTS.md`. The skill gives operating habits and
+routes to these same usage guides. [Workspace values](../agent/ws-values.md)
+explain judgement calls. The concepts page is optional background for either reader.
+
+People and agents **changing ws itself** start with the repository's
+[AGENTS.md](../AGENTS.md) and relevant [contracts](../contracts/README.md).
+Contracts state invariants, allowed extensions and compatibility requirements.
+They are not a prerequisite for ordinary workspace use.
 
 ## Terminal help: one live command reference
 
@@ -39,12 +56,14 @@ page is not something every agent needs to load.
 | What kinds of content can it hold? | `ws domains` |
 | What can I do with documents? | `ws capabilities documents` |
 | How do I type a command? | `ws help add document` or `ws add document --help` |
-| What will it read, change or invoke? | `ws describe add document` |
+| Which guide applies, and what will it change or invoke? | `ws describe add document` |
 | Is the workspace consistent? | `ws check` |
 
 `ws capabilities --json` and `ws describe add document --json` expose discovery
 information to programs and agents. Syntax comes from the parser; declared
-effects and contract pointers come from the command registry. A tutorial can
+effects, guide and contract pointers come from the command registry. Guide
+paths in JSON are relative to the installed ws source/documentation root;
+text output prints the guide’s full local path. A tutorial can
 show a small worked example without duplicating the exhaustive reference.
 
 ## Where explanations and rules live
@@ -55,12 +74,12 @@ show a small worked example without duplicating the exhaustive reference.
 | Guides in `docs/`, such as `project-setup.md` | Walk through a task |
 | `docs/reference/` | Explain configuration and command discovery |
 | `docs/policies/` | State shared data-management policies |
-| `contracts/` at the repository root | Specify data invariants and required behaviour |
+| `contracts/` at the repository root | Specify invariants, extension rules and compatibility requirements |
 | `templates/` at the repository root | Provide reusable starting files |
 
-Contracts primarily serve maintainers, validators and agents resolving detailed
-questions. They are not a beginner reading list. There is currently no
-`docs/guides/` or `docs/contracts/` directory.
+Keep usage guides here in `docs/` and governing rules in root `contracts/`.
+[Architecture](architecture.md) and [layout](layout.md) orient contributors;
+[the wiki plan](projects-wiki-plan.md) records design history rather than setup steps.
 
 ## What is shipped and what belongs to the user
 
