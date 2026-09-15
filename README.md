@@ -23,7 +23,7 @@ two brilliant beginnings:
   It provided the foundation for organising work through a shared command-line tool.
 
 Together, these works give rise to this monumental development:
-*the dawn of a new age of personal superintelligence.*
+*the dawn of a new age of personalized superintelligence.*
 
 ## Install
 
