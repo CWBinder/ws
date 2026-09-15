@@ -1,0 +1,384 @@
+# Project Contract
+
+The projects domain root holds the flat canonical store, the derived browse
+trees, and the taxonomy:
+
+```text
+<projects-domain>/
+  items/<project>/            flat canonical store: one folder per project
+  by-type/  by-field/  by-status/  by-organisation/  by-event/   derived views
+  project-taxonomy.yaml
+```
+
+`ws create project` resolves the projects store in this order:
+
+```text
+--in DIR
+WS_PROJECTS_DIR
+WS_WORKSPACE_ROOT/projects/items
+~/workspace/projects/items
+```
+
+`WS_PROJECTS_DIR` points at the store; the domain root is its parent unless
+`WS_PROJECTS_DOMAIN` overrides it.
+
+Project names are stored as lowercase kebab-case. The CLI accepts separate name
+words and normalizes them, so `ws create project test project` creates
+`test-project/`.
+
+**The store is flat.** A project's identity is its folder name, which must be
+unique across the store. `ws create project` refuses path names — grouping
+folders are retired; grouping is expressed through `fields`, `keywords`, and
+relation edges, and browsed through the derived `by-*` views, where
+reorganising is free and never changes identity. Discovery stays tolerant of
+hand-nested legacy projects (their identity is the relative path), but
+nothing creates new ones.
+
+## Subprojects
+
+A subproject is a project co-located *inside* another project to borrow its
+virtual environment — a concept justified by coding projects: the paper about
+a simulation toolkit lives beside the code it runs, shares the toolkit's
+`.venv`, but keeps its own history. Created with `ws create subproject`,
+it carries a `subproject.yaml`, **not** a `project.yaml`, which keeps the
+structural relationship: discovery keeps the enclosing project as the parent
+(so the subproject never appears in `ws list projects`, and `ws projects
+install` run from inside it sets up the *parent's* environment). It has its
+own `code/`, `data/`, and `results/` and **its own git repository, ignored by
+the parent's** (`create-subproject` runs `git init` and appends the
+subproject's path to the parent's `.gitignore`), but no `.venv` of its own
+(`subproject.yaml` records the parent's, e.g. `venv: ../../.venv`).
+
+Identity-wise a subproject *is* a project: the catalog projects it as
+`project:<parent-relpath>/<sub-relpath>`, so it resolves, relates to any other
+object, and appears in relationship renderings. Sub-ness is structure and
+environment-sharing, never identity. `ws show project:<parent>` lists a
+project's subprojects.
+
+Subprojects may sit inside plain grouping folders within the project — folders
+that exist only to name a family of subprojects. Run `ws create subproject` from
+inside the grouping folder, or give a path name (`ws create subproject
+shuttling/corner`); missing grouping folders are created. The recorded `venv:`
+path adjusts to the depth. Subprojects never nest inside one another, and the
+standard content folders (`code/`, `data/`, `docs/`, ...) cannot serve as
+grouping folders — both are refused.
+
+## Required Files
+
+```text
+project.yaml
+README.md
+AGENTS.md
+CLAUDE.md
+.gitignore
+```
+
+`CLAUDE.md` is a symlink to `AGENTS.md` (on Windows, an `@AGENTS.md` import instead), so Claude Code reads the same instructions. See the agent contract's `CLAUDE.md` section.
+
+## Allowed Optional Top-Level Folders
+
+```text
+code/
+paper/
+data/
+docs/
+refs/
+notes/
+out/
+tmp/
+```
+
+`ws create project` creates `code/`, `paper/`, and `data/` only when their corresponding `--has-code`, `--has-paper`, or `--has-data` flag is supplied. Other allowed folders are created when first needed. The default scaffold contains no empty optional folders.
+
+This keeps project creation minimal and modular. Git does not track empty directories, and `out/` and `tmp/` are intentionally ignored.
+
+No other top-level project folders by default.
+
+## `project.yaml`
+
+Machine-readable project identity and routing metadata.
+
+Required keys:
+
+```yaml
+schema_version: 1
+name: <lowercase-kebab-name>
+title: <human title>
+type: paper
+status: active
+created: YYYY-MM-DD
+description: >
+  One paragraph.
+fields: [physics]
+subfields: [spin-qubits, shuttling]
+keywords: []
+has_code: false
+has_paper: false
+has_data: false
+has_slides: false
+server_compute: false
+runtime:
+  python: false
+  venv: ""
+project_dependencies: []
+hosts: [mac]
+sync:
+  primary_host: mac
+  remotes: []
+  git: []
+  data: []
+```
+
+Allowed `type` values are configured in:
+
+```text
+~/workspace/projects/project-taxonomy.yaml
+```
+
+Default `type` values ("what kind of undertaking is this?"):
+
+```text
+research
+paper
+talk
+software
+teaching
+organizatorial
+other
+```
+
+Allowed `fields` and `subfields` are also configured in
+`~/workspace/projects/project-taxonomy.yaml`; both are shared with literature:
+
+```yaml
+fields: [physics, mathematics, computer-science, ai, humanities]
+subfields:
+  physics: [quantum-information, quantum-computing, spin-qubits, shuttling,
+            numerics, quantum-chemistry, experimental]
+  mathematics: [tooling, numerics]
+```
+
+`fields` are broad disciplines. `subfields` are narrower controlled values,
+and every selected subfield must belong to at least one selected field. Both
+classifiers may be multi-valued. The hierarchy stops at these two levels;
+`keywords` remain free-form descriptors such as `raman`, `qudit`, or
+`reweighting`.
+
+Conceptual project links are canonical edges in the relations service, not
+YAML fields: `ws relate project:<key> to <other-kind>:<key> as depends-on`
+(or `related`). Relations are created exclusively with `ws relate` —
+project creation takes no relation flags and asks no relation questions.
+The one exception is derived, not asserted: recording a `--use-project`
+install dependency also records its depends-on edge. `depends_on` and
+`related` lists in project.yaml are read-only legacy: still validated by
+`ws projects check`, no longer written. A depends-on edge does not imply
+installing the other project's environment — that is what
+`project_dependencies` is for.
+
+`project_dependencies` records install recipes — how another project is set
+up into this one at build time. The only `kind` is `package`: install the
+other project as an editable Python package into this project's own `.venv`.
+The former non-installing kinds (`knowledge`, `source`, `data`, `tool`) are
+retired: a reference that installs nothing is a pure connection, which is an
+edge's job. Legacy entries with those kinds remain readable and are ignored
+by `ws projects install`.
+
+Example:
+
+```yaml
+project_dependencies:
+  - project: potential-generator-toolkit
+    kind: package
+    install: editable
+    path: .
+```
+
+Recording an install dependency also creates the conceptual `depends-on`
+edge for it — one statement about the world, stated once.
+
+Every project owns its own virtual environment. Do not reuse another project's `.venv`; install local package dependencies into the current project's `.venv` instead.
+
+In interactive project creation, package dependencies should be explained as an editable install into the new project's own venv. The wizard should show the command before it is run:
+
+```bash
+.venv/bin/python -m pip install -e ~/Projects/other-project
+```
+
+### Custom install steps (`package_install`)
+
+A project whose build needs more than a plain editable install declares its own
+recipe in its `project.yaml`:
+
+```yaml
+package_install:
+  - "{python} -m pip install scikit-build-core pybind11 ninja cmake"
+  - "{python} -m pip install -e {path} --no-build-isolation"
+```
+
+When a consumer installs that project as a `package` dependency, these steps run
+in order instead of the default `pip install -e` — `{python}` is the consumer's
+venv interpreter and `{path}` is the dependency's installable path. A failing
+step aborts that dependency's install with a warning. The recipe lives with the
+project that needs it, so consumers stay generic.
+
+### Installing capabilities after creation (`ws projects install`)
+
+Nothing is settable only at creation time. `ws projects install
+[project:<key>] [capability ...]` makes the working tree match what
+`project.yaml` records, and is how capabilities are added to an existing
+project. Named capabilities — `code`, `paper`, `data`, `python`, `venv`,
+`slides` — are first recorded in `project.yaml` (each pulls in what it
+needs: slides → venv → python → code, mirroring the creation wizard), then
+everything the file records is (re)materialized: capability folders, Python
+scaffolding, the venv, recorded package dependency installs, and the slide
+generator.
+
+With no capabilities it simply (re)runs the recorded state — use it after
+cloning, after recreating `.venv`, or after editing `project.yaml` by hand.
+The project defaults to the enclosing one; a project whose name collides
+with a capability word must be addressed as `project:<key>`.
+
+Package dependencies retrofit the same way: `ws projects install
+--use-project project:<key>[:package[:path]]` (repeatable, same grammar as
+at creation) records the `project_dependencies` entry, asserts the venv
+chain, creates the depends-on edge — the same one statement, stated once —
+and installs. An entry already recorded is skipped, and an unresolvable
+dependency REF fails before anything is written. Removal is manual in both
+directions: `install` extends and materializes, it never unsets.
+
+`has_slides: true` means the project builds decks with the `slide_factory`
+generator: creation and `ws projects install` editable-install it from
+`~/Utils/SlideGenerator` into the project's `.venv`. Build scripts import
+`slide_factory` (`from slide_factory import Deck`); supported themes and the
+API reference are documented in that separate tool's README.
+
+Literature links are canonical `references` edges in the relations service, created exclusively with `ws relate project:<key> to literature:<ItemKey> as references`. Use them for structurally important project literature, not every citation in a manuscript. A `related_literature` list in project.yaml is read-only legacy: still validated by `ws projects check`, no longer written. Bibliographic details remain in the literature domain; narrative project detail remains in the project README.
+
+Allowed `status` values are defined in `statuses.md`.
+
+Use `ws create project`, `ws projects taxonomy`, and `ws projects
+add-field`/`add-subfield`/`add-type` for project creation and taxonomy
+maintenance. `add-subfield` takes its parent field first.
+
+Use `ws show project:<key>` to inspect project metadata and its
+cross-references to other projects and literature items.
+
+## `README.md`
+
+Human-readable project overview.
+
+Should contain:
+
+- purpose
+- current state
+- important files or folders
+- how to run/build/read the project, if applicable
+
+## `AGENTS.md`
+
+Project-wide instructions.
+
+Should contain:
+
+- read-first list
+- allowed folders
+- project-specific safety rules
+- testing/build/review expectations
+
+Project `AGENTS.md` should not accumulate session-specific state or durable agent memory.
+
+## Git Boundary and Sync
+
+Each project is its own git repository (`git init` at the project root). The
+workspace `~/workspace` is **not** a git repository; only stores that
+deliberately initialize Git are tracked.
+
+Tracked (lightweight, editable):
+
+```text
+project.yaml
+README.md
+AGENTS.md
+CLAUDE.md        (symlink to AGENTS.md)
+docs/            (stable docs)
+notes/           (kept working notes)
+refs/            (small local references)
+```
+
+Never tracked:
+
+```text
+data/**          (heavy data; see allowlist below)
+out/             (regenerable outputs)
+tmp/             (scratch)
+.claude/ .codex/ (agent sessions)
+nested repos     (see below)
+```
+
+`data/` keeps only a manifest layer in git, via this `.gitignore` pattern:
+
+```gitignore
+data/**
+!data/
+!data/README.md
+!data/**/*.md
+!data/**/.gitkeep
+```
+
+Tiny curated data files go in `refs/` or `docs/`, or are force-added explicitly.
+
+### Nested repositories
+
+A project may contain its own sub-repositories — for example `paper/` cloned from Overleaf, or `code/` hosted on GitHub. The parent repo must **ignore** those paths (add `/paper/`, `/code/` to the project `.gitignore`) so they are never embedded as gitlinks. Each sub-repo manages its own history and remote independently. Use git submodules only when deliberate version pinning is wanted.
+
+### Sync model
+
+`ws sync` (planned) uses two channels and never conflates them:
+
+- **git channel** — repos sync via `git push`/`pull` to their remotes (the parent repo and each nested repo independently). Never rsync `.git/`.
+- **rsync channel** — gitignored heavy data (`data/`, `out/`) syncs via rsync with `--exclude .git`.
+
+This is declared in `project.yaml`:
+
+```yaml
+sync:
+  primary_host: mac
+  remotes: []
+  git: []
+  data: []
+```
+
+`ws projects check` warns on tracked or working-tree files larger than 5 MB, so
+heavy data cannot silently enter git.
+
+## Templates
+
+Use:
+
+```text
+~/Projects/ws/templates/project.yaml
+~/Projects/ws/templates/AGENTS.md
+~/Projects/ws/templates/gitignore
+```
+
+## Browse Views
+
+The `by-*` trees sit at the projects domain root, beside the `items/` store,
+rebuilt by `ws projects views rebuild`. Their shapes are declared in the
+folder anatomy file (see `folder-anatomy.md`); the default ring set is
+
+```yaml
+rings: [type, organisation, event, status, field > subfield]
+depth: 2
+```
+
+so each value folder holds its projects flat plus nested `by-*` rings for
+the facets not yet used along the path, e.g.
+`by-organisation/<org title>/by-type/<type>/<leaf>`, with subfields only
+beneath their own field. `unclassified/` is the fallback bucket at the first
+layer, for projects missing the value; deeper rings simply omit them.
+Views are disposable and never canonical: entries are relative symlinks
+into the `items/` store, name collisions get numeric suffixes, and nothing
+may be filed into a view by hand. `ws list projects
+--type/--field/--status/--keyword` answers the same questions without the
+filesystem.

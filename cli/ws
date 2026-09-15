@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+"""Source-checkout launcher; installation also exposes the `ws` entry point."""
+if __name__ == "__main__":
+    from ws_lib.entrypoint import main
+    main()
+else:
+    # Keep the source launcher importable by existing CLI contract tests.
+    from ws_lib.cli import *

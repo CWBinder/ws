@@ -1,0 +1,32 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Generated outputs and scratch
+out/
+tmp/
+
+# Agent sessions (matched at any depth)
+.codex/
+.claude/
+
+# Heavy data: ignore contents, keep only the lightweight manifest layer
+data/**
+!data/**/
+!data/README.md
+!data/**/*.md
+!data/**/.gitkeep
+
+# LaTeX build artifacts
+*.aux
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.log
+*.synctex.gz

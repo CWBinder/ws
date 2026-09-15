@@ -1,0 +1,464 @@
+<meta charset="utf-8">
+<!--
+  Workspace Concepts — visual overview of the object model: objects, kinds,
+  classifiers, taxonomies, relations, renderings. A body fragment (no <html>/
+  <head> wrapper), but it opens directly in a browser as well.
+  Human learning material maintained in this repository.
+  The CLI provides the live command reference; examples here are illustrative.
+-->
+<title>Workspace Concepts</title>
+<style>
+  :root {
+    --ground: #FAFAF8; --surface: #FFFFFF; --ink: #1A1D21; --muted: #5A6069;
+    --accent: #2456A6; --accent-ink: #2456A6; --accent-soft: #EAF0FA;
+    --border: #E3E4E0; --border-strong: #C9CBC6; --code-bg: #F2F3F0;
+    --serif: Charter, "Bitstream Charter", "Iowan Old Style", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #16181B; --surface: #1D2024; --ink: #E8EAED; --muted: #9AA1AA;
+      --accent: #7FA6E0; --accent-ink: #9FBDEA; --accent-soft: #232B3A;
+      --border: #2A2E33; --border-strong: #3A3F46; --code-bg: #22262B;
+    }
+  }
+  :root[data-theme="light"] {
+    --ground: #FAFAF8; --surface: #FFFFFF; --ink: #1A1D21; --muted: #5A6069;
+    --accent: #2456A6; --accent-ink: #2456A6; --accent-soft: #EAF0FA;
+    --border: #E3E4E0; --border-strong: #C9CBC6; --code-bg: #F2F3F0;
+  }
+  :root[data-theme="dark"] {
+    --ground: #16181B; --surface: #1D2024; --ink: #E8EAED; --muted: #9AA1AA;
+    --accent: #7FA6E0; --accent-ink: #9FBDEA; --accent-soft: #232B3A;
+    --border: #2A2E33; --border-strong: #3A3F46; --code-bg: #22262B;
+  }
+  html { background: var(--ground); }
+  body {
+    font-family: var(--sans); color: var(--ink); background: var(--ground);
+    line-height: 1.65; font-size: 16px; margin: 0;
+  }
+  .page { max-width: 74rem; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+  .prose { max-width: 46rem; }
+  header.doc { max-width: 46rem; margin-bottom: 2.5rem; }
+  .eyebrow {
+    font-family: var(--sans); font-size: .72rem; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--accent-ink); font-weight: 600; margin: 0 0 .4rem;
+  }
+  h1 {
+    font-family: var(--serif); font-size: 2.4rem; line-height: 1.15;
+    margin: 0 0 .5rem; text-wrap: balance; font-weight: 600;
+  }
+  .subtitle { color: var(--muted); margin: 0; font-size: 1.05rem; }
+  nav.toc { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin: 1.4rem 0 0; padding: 0; font-size: .85rem; }
+  nav.toc a { color: var(--accent-ink); text-decoration: none; border-bottom: 1px solid transparent; }
+  nav.toc a:hover, nav.toc a:focus-visible { border-bottom-color: var(--accent-ink); }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+  .thesis {
+    font-family: var(--serif); font-size: 1.32rem; line-height: 1.55;
+    border-left: 3px solid var(--accent); padding: .2rem 0 .2rem 1.2rem;
+    margin: 2.2rem 0; max-width: 46rem; text-wrap: pretty;
+  }
+  .thesis .lede { display: block; margin-bottom: .7rem; }
+  h2 {
+    font-family: var(--serif); font-size: 1.6rem; font-weight: 600;
+    margin: 3.2rem 0 .3rem; text-wrap: balance;
+  }
+  h2 .part { color: var(--muted); font-family: var(--sans); font-size: .72rem;
+    letter-spacing: .12em; text-transform: uppercase; display: block; margin-bottom: .3rem; font-weight: 600; }
+  h3 { font-family: var(--serif); font-size: 1.18rem; margin: 2.2rem 0 .3rem; font-weight: 600; }
+  p { margin: .6rem 0 1rem; max-width: 46rem; }
+  code { font-family: var(--mono); font-size: .86em; background: var(--code-bg);
+    padding: .1em .35em; border-radius: 4px; }
+  pre {
+    font-family: var(--mono); font-size: .82rem; line-height: 1.6;
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: .9rem 1.1rem; overflow-x: auto; max-width: 46rem; margin: .8rem 0 1.2rem;
+  }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; font-size: .9rem; margin: 1rem 0 1.4rem; }
+  .tablewrap { overflow-x: auto; }
+  th { text-align: left; font-weight: 600; font-size: .78rem; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--muted); padding: .45rem .9rem .45rem 0; border-bottom: 1px solid var(--border-strong); }
+  td { padding: .5rem .9rem .5rem 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td code { white-space: nowrap; }
+  .aspect-tag { color: var(--accent-ink); font-size: .72rem; font-family: var(--sans); font-weight: 600; }
+  .dim { color: var(--muted); }
+
+  .diagram { display: flex; flex-direction: column; gap: 1.1rem; margin: 1.6rem 0 2rem; max-width: 52rem; }
+  .diagram .row { display: flex; gap: 1.1rem; flex-wrap: wrap; align-items: stretch; }
+  .card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); padding: 1.1rem 1.25rem; }
+  .card .label { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: .7rem; font-weight: 600; }
+  .record { font-family: var(--mono); font-size: .8rem; line-height: 1.95; }
+  .record > div { display: flex; justify-content: space-between; gap: 1.5rem; white-space: nowrap; }
+  .record .k { color: var(--ink); }
+  .record .v { color: var(--muted); }
+  .record .tag { color: var(--accent-ink); font-family: var(--sans); font-size: .7rem; font-weight: 600; align-self: center; }
+  .record .meta { border-top: 1px dashed var(--border); margin-top: .35rem; padding-top: .35rem; }
+  .edgecard { border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px;
+    padding: .8rem 1rem; font-size: .85rem; }
+  .edgecard .rel { font-family: var(--mono); font-size: .74rem; color: var(--accent-ink); }
+  .sidecol { flex: 0 1 13rem; display: flex; flex-direction: column; justify-content: center; gap: .5rem; }
+  .sidenote { font-size: .74rem; color: var(--muted); text-align: center; }
+  .strata { display: flex; gap: .9rem; align-items: center; flex-wrap: wrap; }
+  .stratum { border: 1px solid var(--border-strong); border-radius: 8px; padding: .7rem .9rem;
+    background: var(--surface); flex: 1 1 11rem; font-size: .85rem; }
+  .stratum b { display: block; font-size: .88rem; }
+  .stratum span { color: var(--muted); font-size: .8rem; }
+  .render { border-style: dashed; border-color: var(--border); text-align: center; flex: 1 1 6rem; }
+  .arrow { color: var(--muted); font-size: 1.2rem; }
+  .caption { font-size: .78rem; color: var(--muted); margin-top: .6rem; }
+
+  .kind-head { display: baseline; }
+  .kind-head .idform { font-family: var(--mono); font-size: .78rem; color: var(--muted); margin-left: .6rem; }
+  .callout { border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 0 8px 8px 0;
+    background: var(--surface); padding: .8rem 1.1rem; font-size: .9rem; max-width: 46rem; margin: 1.2rem 0; }
+  .callout .label { font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent-ink); font-weight: 600; display: block; margin-bottom: .3rem; }
+  footer.doc { margin-top: 4rem; border-top: 1px solid var(--border); padding-top: 1.2rem; }
+  footer.doc p { color: var(--muted); font-size: .85rem; }
+  .mantra { font-family: var(--serif); font-style: italic; font-size: 1.05rem; color: var(--ink); }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="page">
+<header class="doc">
+  <p class="eyebrow">ws · workspace concepts</p>
+  <h1>Workspace Concepts</h1>
+  <p class="subtitle">How objects, classifications and relationships organise a workspace.</p>
+  <p>Start here to understand the model. For documentation and learning paths, see the
+  <a href="../README.md">documentation index</a>. Agents start with the
+  <a href="../../SKILL.md">ws skill</a>; exact commands come from <code>ws help</code>
+  and <code>ws describe</code>. People, organisations and records below are fictional examples.</p>
+  <nav class="toc" aria-label="Contents">
+    <a href="#model">The model</a>
+    <a href="#aspects">Six aspects</a>
+    <a href="#guide">Practical guide</a>
+    <a href="#projects">Projects &amp; subprojects</a>
+    <a href="#relations">Relations</a>
+  </nav>
+</header>
+
+<section id="model">
+  <p class="thesis">
+    <span class="lede">An object is an instantiation of a concept — of which we define a few: person, organisation, event, task, document, resource, project, literature item, profile item.</span>
+    Classifiers give an object its address in the folder structure, the id gives it its persistent identity, edges give it its context, and the description tells a human what it is.
+  </p>
+
+  <p>Everything the workspace knows lives in <code>~/workspace</code> as small, plain records —
+  one YAML file per object, one YAML file per edge. The record is obligatory and singular:
+  every object has exactly one record, that record is the only place its truth lives, and no
+  record means no object. Nothing enters by accident: content joins the
+  workspace only through a deliberate <code>ws</code> create or add. The machinery — contracts,
+  templates, the CLI itself — lives separately in <code>~/Projects/ws</code>.</p>
+
+  <p>Objects come to exist in two ways, and the table's identity column shows which is which.
+  Most records are created and owned by <code>ws</code> itself — a person <em>is</em> its YAML
+  file, and only <code>ws</code> writes it. Projects and literature items
+  are different: their files exist anyway (<code>project.yaml</code>, a BibTeX entry), so the
+  catalog reads them as objects instead of duplicating them — which is why they carry natural
+  keys instead of ULIDs, why hand-editing <code>project.yaml</code> is normal while hand-editing
+  <code>person_….yaml</code> is not, and why <code>merge</code> exists only for the owned
+  records.</p>
+
+  <div class="tablewrap"><table>
+    <thead><tr><th>Kind</th><th>Identity</th><th>Record</th></tr></thead>
+    <tbody>
+      <tr><td>person</td><td><code>person_&lt;ULID&gt;</code></td><td><code>logistics/people/person_….yaml</code>, written by <code>ws</code></td></tr>
+      <tr><td>organisation</td><td><code>org_&lt;ULID&gt;</code></td><td><code>logistics/organisations/org_….yaml</code>, written by <code>ws</code></td></tr>
+      <tr><td>event</td><td><code>event_&lt;ULID&gt;</code></td><td><code>logistics/events/event_….yaml</code>, written by <code>ws</code></td></tr>
+      <tr><td>task</td><td><code>task_&lt;ULID&gt;</code></td><td><code>tasks/task_….yaml</code>, written by <code>ws</code></td></tr>
+      <tr><td>document</td><td><code>doc_&lt;ULID&gt;</code></td><td><code>documents/items/doc_….yaml</code> + the file in <code>files/</code></td></tr>
+      <tr><td>project</td><td><code>project:&lt;name&gt;</code></td><td>the folder's own <code>project.yaml</code>, read as an object</td></tr>
+      <tr><td>literature</td><td><code>literature:&lt;ItemKey&gt;</code></td><td>the item's own BibTeX + <code>info.yaml</code>, read as an object</td></tr>
+      <tr><td>profile</td><td><code>profile_&lt;ULID&gt;</code></td><td><code>profile/items/profile_….yaml</code>, written by <code>ws</code></td></tr>
+    </tbody>
+  </table></div>
+
+  <p>Relations are first-class <em>records</em> (<code>rel_&lt;ULID&gt;</code>) but not objects:
+  they are the edges between objects and never appear in the object space themselves.</p>
+</section>
+
+<section id="aspects">
+  <h2>Six aspects of every object</h2>
+  <p>Every field a record carries, and every mechanism around it, plays one of six roles.
+  The fictional record below illustrates an organisation and its relationships.</p>
+
+  <div class="diagram" role="img" aria-label="An annotated organisation record showing the six aspects, and the canonical stores feeding three disposable renderings.">
+    <div class="row">
+      <div class="card" style="flex: 1 1 22rem;">
+        <div class="label">One object, annotated</div>
+        <div class="record">
+          <div><span class="k">id:</span> <span class="v">org_&lt;ULID&gt;</span> <span class="tag">identity</span></div>
+          <div><span class="k">kind:</span> <span class="v">organisation</span> <span class="tag">kind</span></div>
+          <div><span class="k">name:</span> <span class="v">Example Institute</span> <span class="tag dim">lookup key</span></div>
+          <div><span class="k">aliases:</span> <span class="v">Example</span> <span class="tag dim">lookup key</span></div>
+          <div><span class="k">type:</span> <span class="v">institute</span> <span class="tag">classifier</span></div>
+          <div><span class="k">website:</span> <span class="v">institute.example.org</span> <span class="tag">fact</span></div>
+          <div><span class="k">description:</span> <span class="v">"An institute that hosts research workshops."</span> <span class="tag">description</span></div>
+          <div class="meta"><span class="k">provenance:</span> <span class="v">claude-session set description</span> <span class="tag dim">bookkeeping</span></div>
+        </div>
+      </div>
+      <div class="sidecol">
+        <div class="edgecard"><span class="rel">has member</span><br>Alex Example</div>
+        <div class="sidenote">edges live in <code>relations/</code>,<br>never inside the record</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Truth is stored once — rendered three ways</div>
+      <div class="strata">
+        <div class="stratum"><b>Canonical</b><span>records (objects) · relations (edges)</span></div>
+        <div class="arrow">→</div>
+        <div class="stratum render"><b>views</b><span>browse</span></div>
+        <div class="stratum render"><b>wiki</b><span>read</span></div>
+        <div class="stratum render"><b>index</b><span>search</span></div>
+      </div>
+      <div class="caption">Dashed = disposable: wiped and rebuilt from the canonical stores, never written by hand.</div>
+    </div>
+  </div>
+
+  <p><strong>Six fields are universal — every object has them:</strong> <code>id</code>,
+  <code>kind</code>, <code>name</code>, <code>type</code>, <code>aliases</code>,
+  <code>description</code> (type, aliases, and description may be empty). Everything beyond the
+  core is up to the kind. <strong>Identity</strong> is the <code>id</code> alone — never shared,
+  never changed. Name and aliases are doorways the resolver walks through; renaming a person breaks
+  no edge, because edges store ids. <strong>Kind</strong> is fixed at birth and decides which
+  classifiers and facts apply. <strong>Classifiers</strong> place the object — <code>type</code> is
+  the standard one; kinds may add more (projects and literature share
+  <code>fields</code> and field-specific <code>subfields</code>), and <code>status</code> is
+  optional everywhere: written only when set, absent means active. <strong>Facts</strong> are the
+  kind-specific truths. The <strong>description</strong> is a sentence or two of prose: searched,
+  read, never grouped by. <strong>Edges</strong> connect the object to everything else. The core is
+  contractual: <code>~/Projects/ws/contracts/objects.md</code> defines it, and the
+  per-kind contracts define the rest.</p>
+
+  <p><strong>Provenance</strong> sits outside the six: it describes not the object but the
+  record-keeping — which source asserted which fields, when (<code>--source</code>,
+  <code>--observed-at</code>). Agents may file facts as a side effect of normal work precisely
+  because every assertion is signed and dated; staleness checks in <code>ws check</code> are
+  computed from it.</p>
+
+  <p><strong>Taxonomies</strong> are the allowed-value lists behind the extendable classifiers —
+  one sparse YAML file per taxonomy-bearing domain, keyed by the classifier name itself:</p>
+<pre><code># ~/workspace/projects/project-taxonomy.yaml
+type: [research, paper, talk, software]
+fields: [physics, mathematics, computer-science, ai, humanities]
+subfields:
+  physics: [quantum-information, quantum-computing, spin-qubits, shuttling,
+            numerics, quantum-chemistry, experimental]
+  mathematics: [tooling, numerics]</code></pre>
+  <p><code>fields</code> and <code>subfields</code> are shared by projects and literature.
+  Fields are broad; the nested taxonomy records which narrower subfields belong to each field.
+  Both may be multi-valued, but stored combinations must be compatible. Every domain
+  answers the same calls — <code>ws &lt;domain&gt; taxonomy</code> shows the values,
+  <code>add-type</code>/<code>add-field</code>/<code>add-subfield</code> extend them, and the wizards offer to extend on
+  an unknown answer — all through one engine. A taxonomy is consulted only at the front door:
+  it feeds the wizard's options and validates flag input, but renderings mirror whatever values
+  records actually carry. Statuses are deliberately <em>not</em> taxonomies — lifecycles are
+  fixed vocabularies in the contracts, never extendable from a prompt — and kinds without
+  curated classifiers (person, task; organisation and event types are free strings) have
+  no taxonomy file at all, on purpose.</p>
+
+  <p><strong>Folder anatomy</strong> is the taxonomies' sibling: where taxonomies curate the
+  allowed <em>values</em>, the anatomy file declares the <em>shape</em> of every derived
+  <code>by-*</code> browse tree — one ring set per domain that nests into itself. Every facet
+  in the set gets a <code>by-*</code> tree at the domain root, and each value folder holds its
+  items flat plus a ring for every facet not yet used along the path, down to a declared
+  depth:</p>
+<pre><code># ~/workspace/folder-anatomy.yaml
+documents:
+  rings: [type, organisation, event, project, year &gt; month]
+  depth: 2                # by-type/receipt/by-year/2026/by-month/08-August/&lt;file&gt;</code></pre>
+  <p>A facet is either a classifier of the domain's own records or a kind — folders
+  named after related objects, resolved through the relations store; <code>year &gt; month</code>
+  marks a dependent classifier that refines its parent in place, free of the depth count. One
+  engine (<code>ws_lib/anatomy.py</code>) consumes the file for all domains, validates it before
+  wiping anything, and owns every <code>by-*</code> directory at a domain root, so facets removed
+  from the file disappear on rebuild. <code>unclassified/</code> exists only at the first layer;
+  deeper rings simply omit items lacking the facet, and empty rings are never created. Domains
+  absent from the file get built-in defaults; <code>ws check anatomy</code> validates the file.
+  See <code>contracts/folder-anatomy.md</code>.</p>
+</section>
+
+<section id="guide">
+  <h2><span class="part">Practical guide</span>The concepts, one by one</h2>
+
+  <h3 class="kind-head">Person <span class="idform">person_&lt;ULID&gt;</span></h3>
+  <p>An identity anchor plus contact facts — deliberately thin. Who someone <em>is to you</em>
+  (employer, collaborator, met-at) lives as edges, not fields.
+  Holds: <code>preferred_name</code>, <code>emails</code>, <code>phones</code>, aliases, status.</p>
+<pre><code>ws add person Alex Example --email alex@example.org --ensure</code></pre>
+  <p>Bare <code>ws add person</code> on a terminal asks for the name, then aliases,
+  preferred name, emails, phones, and related organisations — each answer ensured and linked
+  <code>affiliated-with</code>. <code>--ensure</code> makes creation idempotent (match by
+  name, alias, or email); duplicates that slip through are caught by <code>ws check</code>
+  and folded with <code>merge</code>, whose tombstones redirect old ids forever.</p>
+
+  <h3 class="kind-head">Organisation <span class="idform">org_&lt;ULID&gt;</span></h3>
+  <p>Companies, colleges, societies. Holds: <code>type</code> (college, company, society…),
+  <code>website</code>, aliases, status. Organisations are never taxonomy values or classifiers
+  on other objects — membership is always an edge.</p>
+<pre><code>ws add organisation Example Institute --alias Example --type institute --website institute.example.org --ensure</code></pre>
+
+  <h3 class="kind-head">Event <span class="idform">event_&lt;ULID&gt;</span></h3>
+  <p>A fixed point in time and space: <code>start</code>, <code>end</code>, <code>timezone</code>,
+  <code>location</code>, <code>type</code> (fair, conference…). Events are deliberately inert —
+  a shared anchor that attendees, documents, and organising work all point at. An event never
+  grows folders; when organising one becomes real work, pair it with an
+  <code>organizatorial</code> project (below).</p>
+<pre><code>ws add event Community Workshop --start 2026-10-07 --location "Community Centre" --ensure</code></pre>
+
+  <h3 class="kind-head">Task <span class="idform">task_&lt;ULID&gt;</span></h3>
+  <p>Quick capture. A task is a single actionable with <code>due</code> and <code>priority</code>;
+  it gains meaning by being related to the thing it concerns —
+  <code>ws show relations of project:&lt;p&gt;</code> assembles a project's to-dos from its
+  edges. Planning is a pattern, not a place: event + tasks + edges.</p>
+<pre><code>ws create task Book meeting room --due 2026-09-15
+ws relate task:book-meeting-room to event:community-workshop as prepares</code></pre>
+
+  <h3 class="kind-head">Document <span class="idform">doc_&lt;ULID&gt;</span></h3>
+  <p>A file plus its registration. Ingest moves the file into <code>documents/files/</code> by
+  default (<code>--mode copy</code> and <code>--mode reference</code> exist), and the record holds
+  <code>path</code>, a <code>classification</code> (a <code>type</code> from the document taxonomy
+  and a date), and status. Derived browse folders — <code>by-type/</code>,
+  <code>by-organisation/</code>, <code>by-event/</code>, <code>by-project/</code>,
+  <code>by-year/</code> — are symlink renderings, rebuilt, never filed into; their shape comes
+  from the folder anatomy file's ring set, which nests into itself beneath every value
+  (<code>by-type/receipt/by-year/2026/by-month/08-August/</code>). Adding classifies;
+  relating is its own speech act:</p>
+<pre><code>ws add document ~/Downloads/venue-invoice.pdf --type invoice --date 2026-07-15 --non-interactive
+ws relate document:venue-invoice to organisation:example-institute as issued-by</code></pre>
+
+  <h3 class="kind-head">Literature <span class="idform">literature:&lt;ItemKey&gt;</span></h3>
+  <p>An adapter over the scholarly library: each item is a folder named by its citation key
+  (<code>Doe2025ExampleStudy</code>). The folder name is the identity — no ULID is
+  minted — and the files inside split cleanly: <code>citation.bib</code> is the bibliographic
+  truth, <code>info.yaml</code> the item's workspace-local facts (its <code>fields</code> and
+  <code>subfields</code> classifiers, keywords, summary), plus optional PDF, TeX source, and notes. Items enter via one
+  command that detects the identifier; the wizard then asks for fields and compatible subfields
+  (<code>--field</code>/<code>--subfield</code> for agents), and the derived views shelve items under
+  <code>by-author/</code>, <code>by-field/&lt;field&gt;/by-subfield/&lt;subfield&gt;/</code>, <code>by-year/</code>, and <code>by-project/</code> at the domain root.
+  Author and year come directly from BibTeX; fields and subfields are editable classifiers. Projects cite items
+  through <code>references</code> edges, not YAML lists.</p>
+  <p>Acquisition is two steps: <code>search-arxiv</code> turns a title into an identifier
+  (printing the journal DOI when arXiv knows it), and <code>add &lt;id&gt; --full</code>
+  (shorthand for <code>--prefer-published --pdf --source</code>) assembles the complete item.
+  The journal BibTeX becomes the main <code>citation.bib</code> — the one you cite from — while
+  the arXiv form is always kept beside it, never lost. The e-print source is downloaded and
+  extracted (the figures ship inside it), and the PDF is fetched journal-first with the arXiv
+  PDF as fallback: the best available, without you deciding. Each piece is also available
+  piecemeal later (<code>download-pdf</code>, <code>download-source</code>,
+  <code>enrich</code>), so nothing forces the choice at add time.</p>
+<pre><code>items/&lt;ItemKey&gt;/
+  citation.bib               journal BibTeX — the citation you cite from
+  source/arxiv/citation.bib  the arXiv form, kept separately
+  source/arxiv/files/        extracted TeX source; figures live here
+  paper.pdf                  open-access journal PDF, else arXiv
+  references.txt             cited-work identifiers, fetchable
+  info.yaml                  workspace-local facts: fields, subfields, keywords, summary</code></pre>
+  <p>Citations are the deliberate exception to edges: a paper's reference list is an
+  <em>extracted fact</em>, not curated knowledge — most cited works aren't in the library, so
+  they are stored as an identifier list on the item (<code>references.txt</code>, fetchable from
+  Semantic Scholar) and the in-library overlap is computed on demand, never stored. Rare
+  deliberate paper-to-paper assertions (supersedes, published-version-of) may still be
+  <code>ws relate</code> edges.</p>
+<pre><code>ws literature search-arxiv numerical methods
+ws add literature &lt;ARXIV-ID&gt; --full --field mathematics --subfield numerics
+ws edit literature:&lt;ItemKey&gt; --add-subfield numerics
+ws literature citations literature:&lt;ItemKey&gt; --in-library     # cited works you hold, as item keys
+ws literature cited-by literature:&lt;ItemKey&gt;                   # library items citing this one
+ws literature views rebuild</code></pre>
+
+  <h3 class="kind-head" id="projects">Project <span class="idform">project:&lt;name&gt;</span></h3>
+  <p>The one container: any bounded undertaking that accumulates work-product in a folder and has
+  a lifecycle. Nothing in the definition is scientific — a conference presence is as much a project
+  as a simulation. Projects live in the flat store <code>projects/items/</code>, and the folder
+  name <em>is</em> the identity — physical grouping folders are retired, so reorganising never
+  changes an identity; all ordering belongs to classifiers and edges, rendered in the
+  <code>by-*</code> trees at the domain root, shaped by the folder anatomy file (research
+  projects shelve by supporting organisation, organisational ones and talks by related event;
+  by-organisation nests org then type).</p>
+  <p>Classifiers: <code>type</code> — research, paper, talk, software, teaching, organizatorial,
+  other; broad <code>fields</code> and controlled <code>subfields</code> — from the shared
+  workspace vocabulary (for example physics / spin-qubits or mathematics / tooling);
+  <code>status</code> — idea, active,
+  paused, complete, archived. Every project carries <code>project.yaml</code>,
+  <code>README.md</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.gitignore</code>,
+  its own git repository, and only sanctioned optional folders
+  (<code>code/ paper/ data/ docs/ refs/ notes/ out/ tmp/</code>).</p>
+<pre><code>ws create project                       # wizard: name, type, then type-aware questions
+ws create project community-workshop --type organizatorial --non-interactive
+ws list projects --type research --status active
+ws projects views rebuild</code></pre>
+  <p>The wizard's interview lives in code, not in a data file: every question is written once,
+  and a small routing table maps each project type to the set of questions that apply — research
+  gets the code/venv/data battery, a talk only "has slides?", organizatorial asks which
+  organisations it is for and which event it organises, creating those edges on the spot. The
+  taxonomy's only role is supplying the allowed answers for three questions (Type, Fields, Subfields, with
+  the extend-offer on unknown values); the rest draw on different sources — free text (title,
+  description, keywords), yes/no setup flags, and references that must resolve to existing
+  objects (dependencies, literature keys, organisations).</p>
+  <p>The closing questions record conceptual links as edges: <em>if a mechanism executes it,
+  it's a fact; if it merely states a connection, it's an edge.</em> "Depends on" and "related"
+  answers become <code>depends-on</code>/<code>related</code> relations (the old
+  <code>depends_on:</code>/<code>related:</code> lists are read-only legacy). Cross-project code
+  reuse is the fact side: <code>--use-project project:example-library</code> records a package dependency in
+  <code>project.yaml</code>, <code>ws projects install</code> creates the venv and runs
+  <code>pip install -e</code> for each recorded dependency — and recording one also creates its
+  <code>depends-on</code> edge, so the connection is stated once.</p>
+
+  <h3>Subproject</h3>
+  <p>A project co-located <em>inside</em> another project to borrow its virtual environment — a
+  concept whose existence is justified by coding projects. The canonical case: a simulation
+  toolkit is the main project; the paper about it lives inside as a subproject, so its scripts
+  and figures run in the toolkit’s <code>.venv</code> — but the paper’s history does not belong
+  in the toolkit’s repository, and the paper absolutely wants a history of its own.</p>
+  <p>So the arrangement is precise. <strong>Identity: it is a project</strong> —
+  <code>project:&lt;parent&gt;/&lt;path&gt;</code>, fully resolvable and relatable to documents,
+  events, organisations like any other object. <strong>Environment: borrowed</strong> — no
+  <code>.venv</code> of its own; <code>subproject.yaml</code> (never <code>project.yaml</code>)
+  records <code>venv: ../../.venv</code>, and <code>ws projects install</code> run inside it sets
+  up the <em>parent’s</em> environment. <strong>History: its own</strong> — creation runs
+  <code>git init</code> in the subproject and appends its path to the parent’s
+  <code>.gitignore</code>, so parent and subproject version themselves independently.
+  Sub-ness is structure and environment-sharing, never identity; it stays out of
+  <code>ws list projects</code>, and <code>ws show project:&lt;parent&gt;</code> lists it.</p>
+<pre><code>ws create subproject methods-paper --project project:simulation-toolkit</code></pre>
+</section>
+
+<section id="relations">
+  <h2><span class="part">Context</span>How concepts relate — and where that lives</h2>
+  <p>Every cross-domain connection is one small YAML record in the workspace-root store
+  <code>~/workspace/relations/</code> — one file per edge, scanned per invocation, no database:</p>
+<pre><code># relations/rel_&lt;ULID&gt;.yaml
+subject:  person_&lt;ULID&gt;           # resolved from person:alex-example
+object:   org_&lt;ULID&gt;              # resolved from organisation:example-institute
+relation: member-of                # free-form kebab-case — no fixed vocabulary
+valid_from: ""   valid_until: ""    # optional time-bounding
+source: claude-session              # provenance</code></pre>
+  <p>The relation type is yours to invent — <code>supported-by</code>, <code>phd-student-at</code>,
+  <code>vice-president</code>, <code>references</code>, <code>organises</code>. What must exist are
+  the <em>endpoints</em>: find each object with <code>ws search</code> and use its full
+  <code>kind:key</code> reference. The stored edge holds the resolved internal identities.
+  The command reads like a sentence, with <code>to</code> and
+  <code>as</code> as optional grammar:</p>
+<pre><code>ws relate person:alex-example to organisation:example-institute as member-of
+ws relate project:methods-paper to literature:Doe2025ExampleStudy as references
+ws unrelate person:alex-example to organisation:example-institute as member-of</code></pre>
+  <p>Relations are stateless assertions: an edge exists or it does not. An ended relationship is
+  still a true relation (time-bound it with <code>valid_until</code>); a wrong one is deleted —
+  <code>unrelate</code> removes the file and prints the exact <code>ws relate</code> command that
+  restores it. Merging duplicate objects re-points their edges to the canonical record
+  automatically.</p>
+  <p>Edges are what the renderings feed on: <code>projects/by-organisation/</code> and
+  <code>documents/by-organisation/</code> materialise them as folders, every wiki page carries a
+  “Workspace relationships” section in both directions, and the search index joins them to
+  objects. Store an edge once; see it everywhere.</p>
+</section>
+
+<footer class="doc">
+  <p class="mantra">Objects hold the truth, provenance signs it, renderings display it — and only the truth is ever edited.</p>
+  <p>Explanation of the <a href="../../contracts/README.md">workspace contracts</a> · <code>ws help</code>, <code>ws capabilities</code>, and <code>ws describe</code> stay authoritative for the live command surface.</p>
+</footer>
+</div>

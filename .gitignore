@@ -1,0 +1,33 @@
+.DS_Store
+
+# Local tool state.
+.codex/
+.claude/
+
+# Generated scratch/output if created under system.
+tmp/
+out/
+
+# Python bytecode caches (e.g. from ws_lib).
+__pycache__/
+*.pyc
+
+# Local installation and build products.
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Credentials and personal runtime state never belong in this repository.
+.env
+.env.*
+!.env.example
+credentials.json
+token.json
+*.pem
+*.key
+*.sqlite
+*.sqlite-*
+.inbox/
+.agents/
+workspace/

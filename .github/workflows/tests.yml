@@ -1,0 +1,31 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # 3.10 is the documented minimum; 3.12 is the development interpreter.
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Run test suite
+        env:
+          WS_WORKSPACE_ROOT: ${{ runner.temp }}/ws-test-workspace
+          WS_CONFIG: ${{ runner.temp }}/ws-test-config.yaml
+        run: python -m unittest discover -s cli/tests -v
+      - name: Install and initialise from a clean environment
+        env:
+          WS_CONFIG: ${{ runner.temp }}/ws-install-config.yaml
+        run: |
+          python install.py --bin-dir "$RUNNER_TEMP/ws-bin"
+          "$RUNNER_TEMP/ws-bin/ws" init --root "$RUNNER_TEMP/ws-workspace"
+          "$RUNNER_TEMP/ws-bin/ws" create project example --type other --non-interactive
+          "$RUNNER_TEMP/ws-bin/ws" check

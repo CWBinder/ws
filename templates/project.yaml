@@ -1,0 +1,31 @@
+schema_version: 1
+name: <project-name>
+title: <Project Title>
+type: research
+status: active
+created: YYYY-MM-DD
+description: >
+  One paragraph.
+
+fields: []
+subfields: []
+keywords: []
+
+has_code: false
+has_paper: false
+has_data: false
+server_compute: false
+
+runtime:
+  python: false
+  venv: ""
+
+project_dependencies: []
+
+hosts: [<host>]
+
+sync:
+  primary_host: <host>
+  remotes: []
+  git: []
+  data: []

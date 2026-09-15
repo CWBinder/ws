@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ws-workspace-cli"
+version = "0.1.0"
+description = "A local workspace for projects, documents, literature and the relationships between them."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ws = "ws_lib.entrypoint:main"
+
+[tool.setuptools.packages.find]
+where = ["cli"]
+include = ["ws_lib*"]
+
+[tool.setuptools.data-files]
+"share/ws" = ["README.md", "GETTING-STARTED.md", "AGENTS.md", "SKILL.md", "CONSTITUTION.md"]
+"share/ws/agent" = ["agent/*.md"]
+"share/ws/contracts" = ["contracts/*.md"]
+"share/ws/templates" = ["templates/*"]
+"share/ws/docs" = ["docs/*.md"]
+"share/ws/docs/concepts" = ["docs/concepts/*.md", "docs/concepts/*.html"]
+"share/ws/docs/reference" = ["docs/reference/*.md"]
+"share/ws/docs/policies" = ["docs/policies/*.md"]
