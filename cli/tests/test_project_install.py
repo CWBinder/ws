@@ -26,15 +26,20 @@ class ProjectInstallTests(unittest.TestCase):
         (self.slide_generator / "pyproject.toml").write_text(
             '[project]\nname = "slide-factory"\n', encoding="utf-8"
         )
+        self.config_values: dict = {}
         self.patchers = [
             mock.patch.object(project, "PROJECTS", self.projects),
             mock.patch.object(project, "LITERATURE_ITEMS", self.root / "literature"),
             mock.patch.object(project, "PROJECT_TAXONOMY", self.root / "project-taxonomy.yaml"),
             mock.patch.object(project, "SLIDE_GENERATOR_PATH", self.slide_generator),
+            mock.patch.object(project.ws_config, "get", self.config_get),
             mock.patch.object(project, "_relate_project_links"),
         ]
         for patcher in self.patchers:
             patcher.start()
+
+    def config_get(self, path: str, default=None):
+        return self.config_values.get(path, default)
 
     def tearDown(self) -> None:
         for patcher in reversed(self.patchers):
@@ -166,6 +171,29 @@ class ProjectInstallTests(unittest.TestCase):
         finally:
             os.chdir(cwd)
         self.assertTrue((root / "data").is_dir())
+
+    def test_slides_installs_configured_theme_packages_after_the_generator(self) -> None:
+        themes = self.projects / "my-themes"
+        themes.mkdir()
+        (themes / "pyproject.toml").write_text('[project]\nname = "my-themes"\n', encoding="utf-8")
+        loose = self.root / "loose-themes"
+        loose.mkdir()
+        (loose / "pyproject.toml").write_text('[project]\nname = "loose-themes"\n', encoding="utf-8")
+        self.config_values["slides.themes"] = ["project:my-themes", {"project": "my-themes"}, str(loose), "project:absent"]
+        self.create_project("talk-themed")
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            calls, _ = self.run_install("slides", name="talk-themed")
+        venv_py = str(self.projects / "talk-themed" / ".venv" / "bin" / "python")
+        installs = [call[-1] for call in calls if call[:5] == [venv_py, "-m", "pip", "install", "-e"]]
+        self.assertEqual(installs, [str(self.slide_generator), str(themes), str(themes), str(loose)])
+        self.assertIn("slide theme package not found: project:absent", stderr.getvalue())
+
+    def test_shipped_slide_generator_is_brand_free_and_present(self) -> None:
+        shipped = Path(project.__file__).resolve().parents[2] / "packages" / "slide_factory"
+        self.assertTrue((shipped / "pyproject.toml").is_file())
+        self.assertTrue((shipped / "slide_factory" / "factory.py").is_file())
+        self.assertFalse((shipped / "assets").exists(), "logos belong in theme packages, not in ws")
 
     def test_missing_has_slides_line_inserted_after_has_data(self) -> None:
         root = self.create_project("legacy-project")

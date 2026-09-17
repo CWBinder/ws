@@ -12,9 +12,25 @@ For example:
 workspace_root: /path/to/my-workspace
 ```
 
-The only persisted setting currently consumed by ws is `workspace_root`.
-Other keys are preserved when initialisation updates that setting. Override the
+ws consumes two settings: `workspace_root` and the optional `slides.themes`.
+Other keys are preserved when initialisation updates the root. Override the
 configuration file location with `WS_CONFIG`.
+
+## Slide themes
+
+The `slides` capability installs the brand-free `slide_factory` generator that
+ships with ws. Branded themes (your institute's colours and logos) live in your
+own theme packages, outside the ws repository. List them and ws installs them
+next to the generator in every slides project:
+
+```yaml
+slides:
+  themes: [project:my-slide-themes]
+```
+
+Entries are project REFs or filesystem paths to a package with a
+`pyproject.toml`. A missing entry produces a warning and is skipped. The recipe
+for writing a theme package is in `packages/slide_factory/README.md`.
 
 ## Path precedence
 

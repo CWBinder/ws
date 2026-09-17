@@ -13,8 +13,10 @@ ws projects install project:<key> venv
 Use the project's actual REF. Capabilities are `code`, `paper`, `data`,
 `python`, `venv` and `slides`. Each records its requirements in `project.yaml`
 and materializes them: venv implies Python, which implies code. Slides implies
-venv and installs the separate `slide_factory` package from
-`~/Utils/SlideGenerator`; it requires that tool to be installed there.
+venv and installs the `slide_factory` deck generator that ships with ws
+(`packages/slide_factory/`), followed by any theme packages listed under
+`slides.themes` in your ws configuration. The shipped generator is brand-free;
+see [Configuration](reference/configuration.md) for adding your own themes.
 
 With no capability words, replay the recorded setup:
 

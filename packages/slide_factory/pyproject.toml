@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slide-factory"
+version = "0.2.0"
+description = "A reusable python-pptx slide factory: fixed layouts, switchable themes, no branding."
+requires-python = ">=3.10"
+dependencies = [
+    "python-pptx>=1.0",
+    "Pillow>=10.0",
+]
+
+[tool.setuptools]
+packages = ["slide_factory"]
