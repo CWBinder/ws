@@ -74,7 +74,7 @@ CLAUDE.md
 
 `CLAUDE.md` is created as a symlink to `AGENTS.md` (or, on Windows, an `@AGENTS.md` import file).
 
-The non-interactive default scaffold contains no empty optional folders. Add `--has-code`, `--has-paper`, or `--has-data` to create the corresponding `code/`, `paper/`, or `data/` folder. `--python` creates Python project metadata and implies `--has-code`; `--venv` creates `.venv` and implies `--python`; `--has-slides` editable-installs the `slide_factory` deck generator from `~/Utils/SlideGenerator` into `.venv` and implies `--venv`. Other allowed folders are created when first needed.
+The non-interactive default scaffold contains no empty optional folders. Add `--has-code`, `--has-paper`, or `--has-data` to create the corresponding `code/`, `paper/`, or `data/` folder. `--python` creates Python project metadata and implies `--has-code`; `--venv` creates `.venv` and implies `--python`; `--has-slides` editable-installs the `slide_factory` deck generator shipped with ws (plus any theme packages from `slides.themes` in the ws configuration) into `.venv` and implies `--venv`. Other allowed folders are created when first needed.
 
 None of these choices is creation-only. `ws projects install [project:<key>] <capability ...>` records the same capabilities (`code`, `paper`, `data`, `python`, `venv`, `slides`) in `project.yaml` and materializes them for an existing project, and `ws projects install --use-project project:<key>` records and installs a package dependency (with its depends-on edge) after the fact; with no capability words it (re)runs everything the file already records. See [Installing project capabilities](project-install.md) for the workflow.
 
@@ -242,7 +242,7 @@ respectively, created exclusively with `ws relate`.
 : `true` when the project is expected to contain data.
 
 `has_slides`
-: `true` when the project builds slide decks with the `slide_factory` generator; creation and `ws projects install` editable-install it from `~/Utils/SlideGenerator` into the project's `.venv`.
+: `true` when the project builds slide decks with the `slide_factory` generator; creation and `ws projects install` editable-install it from the ws checkout, with any configured theme packages, into the project's `.venv`.
 
 `server_compute`
 : `true` when the project expects server, cluster, or long-running compute.

@@ -104,4 +104,5 @@ Inspect `command -v ws` and choose the intended installation. If initialisation
 reports a conflicting file or directory, inspect it before changing anything.
 The basic tutorial needs no network after installation. Online literature
 lookups need internet access; CV PDF generation needs a TeX toolchain, and the
-optional slides capability needs the separately installed SlideGenerator tool.
+optional slides capability downloads python-pptx and Pillow into the project's
+own environment the first time it is installed.

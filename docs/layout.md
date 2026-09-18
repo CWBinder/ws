@@ -12,6 +12,7 @@ The repository holds the shared workspace logic and tooling.
   docs/
   templates/
   cli/          ws + ws_lib (the command-line tool)
+  packages/     brand-free tools ws installs into projects (slide_factory)
 ```
 
 Shared files define the root agent orientation, contracts, templates, and commands. They should work on both Mac and server unless explicitly documented otherwise.

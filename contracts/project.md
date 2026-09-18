@@ -237,9 +237,19 @@ including when invoked within a subproject.
 
 `has_slides: true` means the project builds decks with the `slide_factory`
 generator: creation and `ws projects install` editable-install it from
-`~/Utils/SlideGenerator` into the project's `.venv`. Build scripts import
-`slide_factory` (`from slide_factory import Deck`); supported themes and the
-API reference are documented in that separate tool's README.
+`packages/slide_factory/` in the ws checkout into the project's `.venv`, then
+editable-install every theme package listed under `slides.themes` in the
+private ws configuration (project REFs or paths; a missing entry warns and is
+skipped). The shipped package is brand-free: layouts, drawing helpers and one
+neutral theme. Logos, organisation names and branded themes belong in theme
+packages outside this repository and are discovered through the
+`slide_factory.themes` entry-point group. Build scripts import `slide_factory`
+(`from slide_factory import Deck`); the layouts and the theme-package recipe
+are documented in `packages/slide_factory/README.md`.
+
+A tool ships under `packages/` only if it is generic and brand-free, small,
+materialised into projects rather than run as a service, and needs no
+credentials.
 
 Literature links are canonical `references` edges in the relations service, created exclusively with `ws relate project:<key> to literature:<ItemKey> as references`. Use them for structurally important project literature, not every citation in a manuscript. A `related_literature` list in project.yaml is read-only legacy: still validated by `ws projects check`, no longer written. Bibliographic details remain in the literature domain; narrative project detail remains in the project README.
 

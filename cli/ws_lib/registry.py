@@ -109,13 +109,13 @@ EFFECTS: dict[str, EffectSpec] = {
         writes=("projects/items/<parent>/<slug>/",),
     ),
     "projects install": EffectSpec(
-        reads=("projects/items/<slug>/project.yaml", "dependency projects' package_install recipes", "~/Utils/SlideGenerator"),
+        reads=("projects/items/<slug>/project.yaml", "dependency projects' package_install recipes", "packages/slide_factory in the ws checkout", "slides.themes in the ws configuration"),
         writes=(
             "projects/items/<slug>/project.yaml (capability flags, runtime, project_dependencies)",
             "capability folders, pyproject.toml, and .venv/ inside the project",
         ),
         relations=("creates depends-on edges for newly recorded --use-project dependencies",),
-        external=("pip install -e for package dependencies and the slide generator",),
+        external=("pip install -e for package dependencies, the slide generator and configured slide theme packages",),
     ),
     "tasks create": EffectSpec(writes=("tasks/<key>.yaml",)),
     "documents add": EffectSpec(

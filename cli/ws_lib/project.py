@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from ws_lib import config as ws_config
 from ws_lib import paths, yamlish
 
 
@@ -588,11 +589,40 @@ def install_package_project_dependencies(root: Path, dependencies: list[dict[str
             print(f"installed editable dependency: {dep['project']} ({rel_home(dep_path)})")
 
 
-SLIDE_GENERATOR_PATH = Path.home() / "Utils" / "SlideGenerator"
+# The brand-free slide_factory engine ships with ws, next to cli/.
+SLIDE_GENERATOR_PATH = Path(__file__).resolve().parents[2] / "packages" / "slide_factory"
+
+
+def slide_theme_paths() -> list[Path]:
+    """Theme packages named under `slides.themes` in the private ws
+    configuration: project REFs (`project:<key>`) or filesystem paths.
+    Branding lives there, never in the ws repository."""
+    configured = ws_config.get("slides.themes") or []
+    if isinstance(configured, str):
+        configured = [configured]
+    found: list[Path] = []
+    for entry in configured:
+        if isinstance(entry, dict) and len(entry) == 1:  # block-list `- project:key`
+            (key, value), = entry.items()
+            entry = f"{key}:{value}"
+        entry = str(entry).strip()
+        if not entry:
+            continue
+        if entry.startswith("project:"):
+            name = entry.split(":", 1)[1]
+            path = PROJECTS / name / suggest_package_dependency_path(name)
+        else:
+            path = Path(entry).expanduser()
+        if (path / "pyproject.toml").exists():
+            found.append(path)
+        else:
+            print(f"warning: slide theme package not found: {entry} ({rel_home(path)}); skipped", file=sys.stderr)
+    return found
 
 
 def install_slide_factory(root: Path) -> None:
-    """Editable-install the slide_factory deck generator into the project's venv."""
+    """Editable-install the slide_factory engine shipped with ws, then any
+    configured theme packages, into the project's venv."""
     python = venv_python(root)
     if not python.exists():
         print(f"warning: no virtual environment at {rel_home(root / '.venv')}; slide generator not installed", file=sys.stderr)
@@ -600,13 +630,14 @@ def install_slide_factory(root: Path) -> None:
     if not (SLIDE_GENERATOR_PATH / "pyproject.toml").exists():
         print(f"warning: slide generator not found at {rel_home(SLIDE_GENERATOR_PATH)}; skipped", file=sys.stderr)
         return
-    rendered = f"{shlex.quote(str(python))} -m pip install -e {shlex.quote(str(SLIDE_GENERATOR_PATH))}"
-    print(f"running: {rendered}")
-    result = subprocess.run(shlex.split(rendered), cwd=root, check=False)
-    if result.returncode != 0:
-        print(f"warning: slide generator install failed: {rendered}", file=sys.stderr)
-    else:
-        print(f"installed slide generator: {rel_home(SLIDE_GENERATOR_PATH)}")
+    for label, path in [("slide generator", SLIDE_GENERATOR_PATH)] + [("slide themes", p) for p in slide_theme_paths()]:
+        rendered = f"{shlex.quote(str(python))} -m pip install -e {shlex.quote(str(path))}"
+        print(f"running: {rendered}")
+        result = subprocess.run(shlex.split(rendered), cwd=root, check=False)
+        if result.returncode != 0:
+            print(f"warning: {label} install failed: {rendered}", file=sys.stderr)
+        else:
+            print(f"installed {label}: {rel_home(path)}")
 
 
 INSTALL_FEATURES = ("code", "paper", "data", "python", "venv", "slides")
@@ -1767,8 +1798,9 @@ Projects are minted with `ws create project` and read with
   code, paper, data  the matching folder, recorded as has_<capability>: true
   python             pyproject.toml, recorded as runtime.python (implies code)
   venv               .venv, recorded as runtime.venv (implies python)
-  slides             the slide_factory deck generator, editable-installed from
-                     ~/Utils/SlideGenerator into .venv (implies venv)
+  slides             the slide_factory deck generator shipped with ws, plus any
+                     theme packages from `slides.themes` in the ws
+                     configuration, editable-installed into .venv (implies venv)
 
 Examples:
   ws projects install                (re)run everything recorded: folders,
