@@ -8,9 +8,10 @@ import os
 import sqlite3
 import sys
 import tempfile
+import textwrap
 from pathlib import Path
 
-from ws_lib import catalog, paths, relations
+from ws_lib import catalog, paths, registry, relations
 
 
 INDEX = paths.INDEX
@@ -146,7 +147,7 @@ def stat() -> dict:
 
 def findings() -> list[dict]:
     if not INDEX.exists():
-        return [{"severity": "warning", "message": f"index does not exist; run `ws index rebuild`: {INDEX}"}]
+        return [{"severity": "warning", "message": f"index does not exist; run `ws rebuild index`: {INDEX}"}]
     current_objects = {obj.id for obj in catalog.all_objects()}
     current_relations = {str(row.get("id", "")) for row in relations.load_all()}
     connection = connect()
@@ -176,12 +177,6 @@ def ensure() -> None:
         rebuild(quiet=True)
 
 
-def command_rebuild(args: argparse.Namespace) -> None:
-    result = rebuild(quiet=args.json)
-    if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
-
-
 def command_stat(args: argparse.Namespace) -> None:
     result = stat()
     if args.json:
@@ -195,13 +190,29 @@ def command_stat(args: argparse.Namespace) -> None:
         print(f"  {type_name}: {count}")
 
 
-def _kind_words() -> dict[str, str]:
-    """CLI kind words accepted as a scoping first token of `ws search`."""
-    words = {spec["plural"]: kind for kind, spec in catalog.SPECS.items()}
-    words["organizations"] = "organisation"
-    words["projects"] = "project"
-    words["literature"] = "literature"
-    return words
+# Words that carry no meaning for matching, so natural phrasing such as
+# `ws search resources for delft` finds what `ws search resources delft` does.
+FILLER_WORDS = frozenset({
+    "a", "an", "the", "and", "or", "of", "for", "about", "on", "in", "at",
+    "to", "from", "with", "by", "my", "is", "are", "where", "what", "which",
+})
+
+
+def _query_terms(phrase: str) -> list[str]:
+    """The words every hit must contain: the query without filler, unless
+    filler is all it has."""
+    words = list(dict.fromkeys(phrase.split()))
+    return [word for word in words if word not in FILLER_WORDS] or words
+
+
+def _values(value) -> list[str]:
+    """Every scalar in a record, without its field names: a field called
+    `description` is not a discovery term, its text is."""
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in _values(item)]
+    if isinstance(value, list):
+        return [text for item in value for text in _values(item)]
+    return [] if value is None else [str(value)]
 
 
 TYPED_KINDS = {"document", "organisation", "event", "profile", "project"}
@@ -236,13 +247,24 @@ def _object_type(kind: str, data: dict) -> str:
 
 def command_search(args: argparse.Namespace) -> None:
     query_words = list(args.query) if isinstance(args.query, list) else [args.query]
+    # argparse hands the first of several words to KIND whether or not it
+    # names a kind, so the words are rejoined and the kind recognised here.
+    if getattr(args, "scope", None):
+        query_words.insert(0, args.scope)
     kind = ""
-    if query_words and query_words[0] in _kind_words():
-        scope = query_words.pop(0)
+    # Filler in front ("for resources delft") does not hide a kind word. The
+    # word is compared as typed, so quoting it together with the next word
+    # keeps it a query word: `ws search "event horizon"`.
+    lead = 0
+    while lead < len(query_words) - 1 and query_words[lead].casefold() in FILLER_WORDS:
+        lead += 1
+    if query_words and query_words[lead] in registry.KIND_OF_WORD:
+        kind = registry.KIND_OF_WORD[query_words[lead]]
+        query_words = query_words[lead + 1:]
         if not query_words:
             # Enumeration is list's job, so hand the user the command that
             # does what they asked -- carrying the filters they already typed.
-            hint = f"ws list {scope}"
+            hint = f"ws list {registry.KIND_PLURALS[kind]}"
             for flag, value in (
                 ("--type", getattr(args, "type", "")),
                 ("--limit", getattr(args, "limit", None) if getattr(args, "limit", 50) != 50 else None),
@@ -252,10 +274,9 @@ def command_search(args: argparse.Namespace) -> None:
             if getattr(args, "json", False):
                 hint += " --json"
             catalog.fail(
-                f"searching within {scope} needs query words; "
+                f"searching within {registry.KIND_PLURALS[kind]} needs query words; "
                 f"to enumerate them use `{hint}`"
             )
-        kind = _kind_words()[scope]
         args.query = query_words
     # `--type` is the kind's own classifier here, exactly as on `ws list`.
     # The kind itself is named by the first word and has no second spelling.
@@ -273,56 +294,75 @@ def command_search(args: argparse.Namespace) -> None:
             catalog.fail(
                 f"unknown {kind} type '{wanted_type}'; allowed: {', '.join(allowed)}"
             )
+    phrase = " ".join(" ".join(query_words).casefold().split())
+    words = _query_terms(phrase)
+    # The whole query, or its content words alone, may name a hit outright:
+    # "journal of physics", "the maria schwarz".
+    phrases = {phrase, " ".join(words)}
     # Canonical mutations invalidate this derived cache. Reuse it between
     # searches; rebuilding every query makes broad workspaces needlessly slow.
     ensure()
     connection = connect()
     try:
-        raw_query = " ".join(args.query) if isinstance(args.query, list) else args.query
-        normalized_query = " ".join(raw_query.casefold().split())
-        query = f"%{normalized_query}%"
-        sql = (
-            "SELECT ref, type, title, aliases, data FROM objects "
-            "WHERE (lower(title) LIKE ? OR lower(aliases) LIKE ? OR lower(data) LIKE ?)"
-        )
-        parameters: list = [query, query, query]
+        sql = "SELECT ref, type, title, aliases, data FROM objects"
+        parameters: list = []
         if kind:
-            sql += " AND type = ?"
+            sql += " WHERE type = ?"
             parameters.append(kind)
         candidates = list(connection.execute(sql, parameters))
-        if wanted_type:
-            candidates = [
-                row for row in candidates
-                if _object_type(kind, json.loads(row[4] or "{}")) == wanted_type
-            ]
-
-        def rank(row) -> tuple:
-            ref, _kind, title, aliases_json, data_json = row
-            aliases = json.loads(aliases_json or "[]")
-            data = json.loads(data_json or "{}")
-            key = str(data.get("key", "") or ref.partition(":")[2])
-            primary = [str(title), key, *[str(alias) for alias in aliases]]
-            normalized = [" ".join(value.casefold().split()) for value in primary]
-            if normalized_query in normalized:
-                score = 0
-            elif any(value.startswith(normalized_query) for value in normalized):
-                score = 1
-            elif any(normalized_query in value for value in normalized):
-                score = 2
-            else:
-                score = 3
-            return score, str(title).casefold(), str(ref).casefold()
-
-        candidates.sort(key=rank)
-        rows = [
-            {"ref": row[0], "kind": row[1], "name": row[2]}
-            for row in candidates[: args.limit]
-        ]
     finally:
         connection.close()
+
+    # Words are matched here rather than in SQL: each must appear, in any
+    # order, and casefold() also folds non-ASCII letters, which SQLite's
+    # lower() leaves alone.
+    full: list[tuple] = []
+    partial: list[tuple] = []
+    matched: set[str] = set()
+    for ref, row_kind, title, aliases_json, data_json in candidates:
+        data = json.loads(data_json or "{}")
+        if wanted_type and _object_type(kind, data) != wanted_type:
+            continue
+        key = str(data.get("key", "") or ref.partition(":")[2])
+        names = [
+            " ".join(str(value).casefold().split())
+            for value in (title, key, *json.loads(aliases_json or "[]"))
+        ]
+        metadata = "\n".join(value.casefold() for value in _values(data))
+        in_names = [word for word in words if any(word in name for name in names)]
+        found = [word for word in words if word in in_names or word in metadata]
+        if not found:
+            continue
+        matched.update(found)
+        row = {"ref": ref, "kind": row_kind, "name": title}
+        order = (str(title).casefold(), ref.casefold())
+        if len(found) < len(words):
+            partial.append(((-len(found), -len(in_names), *order), row))
+        elif phrases & set(names):
+            full.append(((0, *order), row))
+        elif any(name.startswith(text) for name in names for text in phrases):
+            full.append(((1, *order), row))
+        elif any(text in name for name in names for text in phrases):
+            full.append(((2, *order), row))
+        else:
+            # Every word is there: all in the names, or some only in metadata.
+            full.append(((3 if len(in_names) == len(words) else 4, *order), row))
+
+    rows = [row for _, row in sorted(full or partial, key=lambda hit: hit[0])[: args.limit]]
+    note = ""
+    if partial and not full:
+        note = "no hit has every word"
+        missing = [f'"{word}"' for word in words if word not in matched]
+        if missing:
+            note += f" ({', '.join(missing)} {'matches' if len(missing) == 1 else 'match'} nothing)"
     if args.json:
-        print(json.dumps(rows, ensure_ascii=False, indent=2, sort_keys=True))
+        # Programs get only hits that have every word; the hint goes to stderr.
+        if note:
+            print(note, file=sys.stderr)
+        print(json.dumps(rows if full else [], ensure_ascii=False, indent=2, sort_keys=True))
     else:
+        if note:
+            print(f"{note}; partial matches:")
         for row in rows:
             print(f"{row['ref']}  —  {row['name']}")
         if not rows:
@@ -332,23 +372,42 @@ def command_search(args: argparse.Namespace) -> None:
 def add_parsers(sub: argparse._SubParsersAction) -> None:
     parser = sub.add_parser("index")
     actions = parser.add_subparsers(dest="index_command", required=True)
-    rebuild_parser = actions.add_parser("rebuild", help="rebuild the derived search index now")
-    rebuild_parser.add_argument("--json", action="store_true")
-    rebuild_parser.set_defaults(func=command_rebuild)
     stat_parser = actions.add_parser("stat", help="report the index's size, age, and row counts")
     stat_parser.add_argument("--json", action="store_true")
     stat_parser.set_defaults(func=command_stat)
 
+    kinds = textwrap.fill(
+        ", ".join(sorted(set(registry.KIND_PLURALS.values()))),
+        width=76, initial_indent="  ", subsequent_indent="  ",
+    )
     search = sub.add_parser(
         "search",
-        help="search everything; a first word naming a kind scopes",
-        description="Search the whole workspace; a first word naming a kind scopes.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="search every kind of object, or only the kind named first",
+        description="Search every kind of object, or only one kind: name it first.",
+        epilog=f"""Kinds, singular or plural:
+{kinds}
+
+Examples:
+  ws search march report                  every kind; words in any order
+  ws search documents march report        documents only
+  ws search people for maria              'for' is ignored
+  ws search documents slides --type presentation
+  ws search "event horizon"               quoted: 'event' is a word, not a kind
+""",
+    )
+    search.add_argument(
+        "scope",
+        nargs="?",
+        metavar="KIND",
+        help="optional; search only this kind (listed below)",
     )
     search.add_argument(
         "query",
         nargs="+",
-        help="query words; a first word naming a kind (documents, people, ...) "
-        "scopes the search to that kind. Quotes are optional.",
+        metavar="WORDS",
+        help="words to find; every word must match, in any order, and filler "
+        "such as 'for' or 'the' is ignored",
     )
     search.add_argument(
         "--type",

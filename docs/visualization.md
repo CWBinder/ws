@@ -1,12 +1,33 @@
 # Visualization and Wiki
 
-Use this guide to generate a browsable Markdown view of workspace records and
-their connections. For file-manager views, see [Browsing](browsing.md).
+Use this guide to see the workspace at a glance in a browser, or to generate a
+browsable Markdown view of its records and connections. For file-manager views,
+see [Browsing](browsing.md).
 
-## Build and open
+Both are derived from the records. `ws rebuild` regenerates them together with
+the search index and the browse folders; `ws rebuild dashboard` or
+`ws rebuild wiki` regenerates just one.
+
+## Dashboard
 
 ```bash
-ws wiki build
+ws rebuild dashboard
+```
+
+Open `~/workspace/dashboard.html` in any browser; it needs no network. It
+shows what is due and coming up (open tasks with a due date, overdue first,
+and events not yet over), what was added recently, projects by status, which
+objects have no relation yet, and the whole graph: hover a node to identify
+it, click it to list its relations the way `ws show` does, search by words,
+filter by kind, or switch to a table view.
+
+The page is a snapshot: rebuild it after changes. It is derived, so deleting
+it loses nothing; a workspace kept in git should ignore it.
+
+## Wiki: build and open
+
+```bash
+ws rebuild wiki
 ```
 
 Open your configured workspace folder as a vault in Obsidian if you use it,
@@ -26,7 +47,7 @@ show the default `~/workspace`; substitute your configured root if different.
 
 ## Current output
 
-- ws generates Markdown with Obsidian-style wikilinks. It does not currently generate a static HTML graph.
+- ws generates Markdown with Obsidian-style wikilinks; the interactive HTML graph is the [dashboard](#dashboard).
 - **Single workspace vault.** One vault rooted at `~/workspace`. Per-project views come from Obsidian's local-graph view, not separate vaults.
 
 ## Vault layout
@@ -38,7 +59,7 @@ show the default `~/workspace`; substitute your configured root if different.
 
 ```text
 wiki/
-  generated/                  # gitignored, produced by `ws wiki build`
+  generated/                  # gitignored, produced by `ws rebuild wiki`
     Workspace.md              # home map-of-content (MOC)
     Connections.md            # cross-project/literature links
     Projects.md               # index MOC of all projects
@@ -79,7 +100,7 @@ Each generated note carries YAML frontmatter (for tags/grouping) and `[[wikilink
 
 ## Regeneration
 
-- `ws wiki build` regenerates the `generated/` layer from canonical YAML. It is idempotent — safe to delete `generated/` and rebuild.
+- `ws rebuild wiki` regenerates the `generated/` layer from canonical YAML. It is idempotent — safe to delete `generated/` and rebuild.
 - Generated files carry a header marker noting they are generated; never hand-edit them.
 
 ## Git and Obsidian config
@@ -89,6 +110,6 @@ Each generated note carries YAML frontmatter (for tags/grouping) and `[[wikilink
 
 ## Implementation reference
 
- `ws wiki build` generates the `generated/` layer (project, literature, career, and field node-notes plus the index MOCs) from canonical YAML. It clears and rebuilds `generated/` on each run. Maintainers should read the [wiki contract](../contracts/wiki.md) and the
+ `ws rebuild wiki` generates the `generated/` layer (project, literature, career, and field node-notes plus the index MOCs) from canonical YAML. It clears and rebuilds `generated/` on each run. Maintainers should read the [wiki contract](../contracts/wiki.md) and the
 [profile privacy rules](../contracts/career.md#privacy-and-git). The
 [earlier wiki plan](projects-wiki-plan.md) records design history.

@@ -30,10 +30,9 @@ Use the actual REF returned by add or search:
 ws show document:<key>
 ws relate document:<key> to project:<project-key> as belongs-to
 ws search documents report
-ws show relations of document:<key>
 ```
 
-`show` gives the record and content path. Classify with a document type and
+`show` gives the record, the content path, and the document's relations. Classify with a document type and
 date; relate to organisations, projects or events. See
 [Document classification](concepts/document-classification.md) for the model.
 Views are rebuilt after ingestion and edits. [Browsing](browsing.md) explains
@@ -46,7 +45,7 @@ ws edit document:<key> --type report
 ws documents types add TYPE
 ws documents types rename TYPE --to NEW-TYPE
 ws documents types remove TYPE
-ws documents views rebuild
+ws rebuild views documents
 ws check
 ```
 

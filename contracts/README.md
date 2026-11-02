@@ -2,29 +2,31 @@
 
 Contracts define what implementations must preserve and how they may be
 extended. Read them when changing ws, its schemas, adapters, validators or
-generators. People and agents using ws share the [usage documentation](../docs/README.md).
+generators. People and agents using ws share the manual, printed by `ws help`.
 
 A contract contains canonical ownership, schema/identity rules, observable
 guarantees, failure boundaries, and extension/compatibility requirements.
 Small schema or boundary examples belong here. Setup sequences, command
-walkthroughs and advice about which workflow to choose belong in docs.
+walkthroughs and advice about which workflow to choose belong in the
+manual (`help/`, printed by `ws help`).
 
 ## Find the governing contract
 
-| Change | Contract | Usage or explanation |
+| Change | Contract | Manual |
 |---|---|---|
-| Installation, roots, scaffold | [Workspace](workspace.md) | [Getting started](../GETTING-STARTED.md), [configuration](../docs/reference/configuration.md) |
-| Command registration and discovery | [CLI](cli.md) | [Command reference](../docs/reference/commands.md) |
-| Identity, lifecycle, adapters | [Objects](objects.md), [statuses](statuses.md) | [Connecting and finding](../docs/relationships.md) |
-| Projects and environments | [Project](project.md) | [Project setup](../docs/project-setup.md), [capabilities](../docs/project-install.md) |
-| Literature | [Library](library.md) | [Literature guide](../docs/literature.md) |
-| Documents | [Documents](documents.md) | [Filing documents](../docs/documents.md) |
-| Resources | [Resources](resources.md) | [Bundles](../docs/resources.md) |
-| Profile and CV output | [Career](career.md) | [Profile and CVs](../docs/profile.md) |
-| Tasks and contacts/events | [Tasks](tasks.md), [logistics](logistics.md) | [Command reference](../docs/reference/commands.md) |
-| Cross-domain edges | [Relations](relations.md) | [Connecting records](../docs/relationships.md) |
-| Folder views | [Folder anatomy](folder-anatomy.md) | [Browsing](../docs/browsing.md) |
-| Derived index, wiki, validation | [Search](search.md), [wiki](wiki.md), [check](check.md) | [Command reference](../docs/reference/commands.md), [wiki guide](../docs/visualization.md) |
+| Installation, roots, scaffold | [Workspace](workspace.md) | [Getting started](../GETTING-STARTED.md), `ws help init`, `ws help configuration` |
+| Command registration and discovery | [CLI](cli.md) | `ws help`, `ws capabilities` |
+| Identity, lifecycle, adapters | [Objects](objects.md), [statuses](statuses.md) | `ws help show`, `ws help search` |
+| Projects and environments | [Project](project.md) | `ws help projects`, `ws help create project`, `ws help projects install` |
+| Literature | [Library](library.md) | `ws help literature` |
+| Documents | [Documents](documents.md) | `ws help documents` |
+| Resources | [Resources](resources.md) | `ws help resources` |
+| Profile and CV output | [Career](career.md) | `ws help profile` |
+| Tasks and contacts/events | [Tasks](tasks.md), [logistics](logistics.md) | `ws help tasks`, `ws help people` |
+| Cross-domain edges | [Relations](relations.md) | `ws help relations` |
+| Context notes and briefings | [Context](context.md) | `ws help context` |
+| Folder views | [Folder anatomy](folder-anatomy.md) | `ws help rebuild views` |
+| Derived index, wiki, dashboard, validation | [Rebuilding](workspace.md#derived-layers), [search](search.md), [wiki](wiki.md), [dashboard](dashboard.md), [check](check.md) | `ws help rebuild`, `ws help check` |
 
 `projects.md`, `literature.md` and `profile.md` are namespace entry points
 that link to the detailed contracts above. They do not define another schema.

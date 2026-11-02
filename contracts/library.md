@@ -1,6 +1,6 @@
 # Literature Contract
 
-Usage: [Working with literature](../docs/literature.md).
+Usage: `ws help literature`.
 This contract governs implementations and extensions of the literature store.
 
 
@@ -127,6 +127,15 @@ Manuscripts should remain buildable with their own local bibliography, even when
 Project literature links are explicit canonical `references` edges. Import
 must not write linking flags or a `related_literature` list into project YAML;
 that field is read-only legacy. Repeating an identical edge is idempotent.
+
+## Removal
+
+`ws delete literature:<key>` moves the item folder, with its citation, PDF,
+source and notes, to the Trash, removes its edges and rebuilds the derived
+views. It refuses an item that supplies the citation of a profile
+publication (a `represents` edge from a profile entry) until that edge is
+deleted, because the CV would otherwise lose the entry without notice. See
+[Removing objects](objects.md#removing-objects).
 
 ## Git Boundary
 

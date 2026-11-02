@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ws_lib import catalog, indexing, paths, records, relations
+from ws_lib import catalog, indexing, paths, records, registry, relations
 
 
 def load_ws_module():
@@ -89,6 +89,13 @@ class SearchTests(unittest.TestCase):
             args.func(args)
         return buffer.getvalue()
 
+    def _fails(self, *parts) -> str:
+        args = self.parser.parse_args(["search", *parts])
+        buffer = io.StringIO()
+        with contextlib.redirect_stderr(buffer), self.assertRaises(SystemExit):
+            args.func(args)
+        return buffer.getvalue()
+
     def test_kind_first_word_scopes_the_search(self) -> None:
         people_only = self._run("people", "MS")
         self.assertIn("person:maria-schwarz", people_only)
@@ -106,6 +113,16 @@ class SearchTests(unittest.TestCase):
     def test_kind_word_alone_points_at_list(self) -> None:
         with self.assertRaises(SystemExit), contextlib.redirect_stderr(io.StringIO()):
             self._run("people")
+
+    def test_help_shows_the_kind_operand_and_every_kind(self) -> None:
+        # Searching one kind was easy to miss while only a sentence said so.
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer), self.assertRaises(SystemExit):
+            self.parser.parse_args(["search", "-h"])
+        text = buffer.getvalue()
+        self.assertIn("[KIND] WORDS", text)
+        for plural in set(registry.KIND_PLURALS.values()):
+            self.assertIn(plural, text)
 
     def test_hit_is_printed_as_text(self) -> None:
         # The text branch is the one that regressed: --json never touched the
@@ -132,7 +149,7 @@ class SearchTests(unittest.TestCase):
         rows = json.loads(self._run("MS", "--json"))
         self.assertEqual(rows[0]["ref"], "person:maria-schwarz")
 
-    def test_unquoted_multiword_query_is_joined(self) -> None:
+    def test_unquoted_multiword_query_finds_the_name(self) -> None:
         rows = json.loads(self._run("Maria", "Schwarz", "--json"))
         self.assertEqual(rows[0]["ref"], "person:maria-schwarz")
 
@@ -173,13 +190,6 @@ class SearchTypeFilterTests(SearchTests):
                 },
             )
 
-    def _fails(self, *parts) -> str:
-        args = self.parser.parse_args(["search", *parts])
-        buffer = io.StringIO()
-        with contextlib.redirect_stderr(buffer), self.assertRaises(SystemExit):
-            args.func(args)
-        return buffer.getvalue()
-
     def test_type_filters_by_classifier_not_by_kind(self) -> None:
         # The regression: --type once meant the kind, so a real classifier
         # value silently matched nothing.
@@ -212,6 +222,105 @@ class SearchTypeFilterTests(SearchTests):
         self.assertIn("ws list documents`", plain)
         with_json = self._fails("documents", "--type", "presentation", "--json")
         self.assertIn("ws list documents --type presentation --json", with_json)
+
+
+class WordMatchingTests(SearchTests):
+    """Every word must match, in any order; filler words are ignored."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._record("document", "delft-slides", "Overview of Modelling at Quantum Motion — Delft (33 slides)")
+        self._record("document", "gate-slides", "Gate-Distance Modelling Slides")
+        self._record("document", "event-horizon-notes", "Event horizon notes")
+        self._record("document", "oh-graz-application", "Funding Application (ÖH Graz)")
+        self._record(
+            "event", "delft-visit", "Delft Visit, February 2026",
+            description="Two days of talks at TU Delft",
+        )
+
+    def _record(self, kind: str, key: str, name: str, **fields) -> None:
+        store = Path(catalog.SPECS[kind]["dir"])
+        store.mkdir(parents=True, exist_ok=True)
+        records.atomic_write(
+            store / f"{key}.yaml",
+            {
+                "schema_version": 1,
+                "id": f"{catalog.SPECS[kind]['prefix']}_{key}",
+                "key": key,
+                "kind": kind,
+                "name": name,
+                "aliases": [],
+                **fields,
+            },
+        )
+
+    def _refs(self, *parts) -> list[str]:
+        return [row["ref"] for row in json.loads(self._run(*parts, "--json"))]
+
+    def test_words_match_in_any_order(self) -> None:
+        # The regression: the query was matched as one contiguous phrase, so
+        # "delft slides" missed a title holding both words apart.
+        self.assertIn("document:delft-slides", self._refs("delft", "slides"))
+        self.assertIn("document:delft-slides", self._refs("slides", "delft"))
+
+    def test_every_word_must_match(self) -> None:
+        self.assertNotIn("event:delft-visit", self._refs("delft", "slides"))
+        self.assertEqual(self._refs("delft", "visit"), ["event:delft-visit"])
+
+    def test_whole_phrase_ranks_before_scattered_words(self) -> None:
+        self.assertEqual(
+            self._refs("modelling", "slides"),
+            ["document:gate-slides", "document:delft-slides"],
+        )
+
+    def test_filler_words_are_ignored(self) -> None:
+        refs = self._refs("documents", "for", "delft")
+        self.assertIn("document:delft-slides", refs)
+        self.assertNotIn("event:delft-visit", refs)
+
+    def test_leading_filler_does_not_hide_the_kind_word(self) -> None:
+        self.assertEqual(self._refs("for", "events", "delft"), ["event:delft-visit"])
+
+    def test_a_query_of_only_filler_still_searches(self) -> None:
+        self.assertIn("document:delft-slides", self._refs("of"))
+
+    def test_singular_kind_word_scopes(self) -> None:
+        self.assertEqual(self._refs("event", "delft"), ["event:delft-visit"])
+        documents = self._refs("document", "delft")
+        self.assertIn("document:delft-slides", documents)
+        self.assertNotIn("event:delft-visit", documents)
+
+    def test_singular_kind_word_alone_points_at_the_plural_list(self) -> None:
+        self.assertIn("ws list documents`", self._fails("document"))
+
+    def test_quoting_keeps_a_kind_word_a_query_word(self) -> None:
+        self.assertEqual(self._refs("event horizon"), ["document:event-horizon-notes"])
+        self.assertNotIn("document:event-horizon-notes", self._refs("event", "horizon"))
+
+    def test_case_folding_covers_non_ascii_letters(self) -> None:
+        # SQLite's lower() folds ASCII only, so "ÖH" once matched nothing.
+        self.assertEqual(self._refs("öh"), ["document:oh-graz-application"])
+        self.assertEqual(self._refs("ÖH", "graz"), ["document:oh-graz-application"])
+
+    def test_field_names_are_not_search_terms(self) -> None:
+        # Values are discovery terms; the record's own field names are not.
+        self.assertEqual(self._run("description").strip(), "none")
+
+    def test_partial_matches_are_labelled(self) -> None:
+        lines = self._run("delft", "zebra").splitlines()
+        self.assertIn("no hit has every word", lines[0])
+        self.assertIn('"zebra" matches nothing', lines[0])
+        self.assertIn("document:delft-slides", "\n".join(lines[1:]))
+
+    def test_no_matching_word_reports_none(self) -> None:
+        self.assertEqual(self._run("zebra", "yak").strip(), "none")
+
+    def test_json_stays_strict_when_no_hit_has_every_word(self) -> None:
+        errors = io.StringIO()
+        with contextlib.redirect_stderr(errors):
+            rows = json.loads(self._run("delft", "zebra", "--json"))
+        self.assertEqual(rows, [])
+        self.assertIn("no hit has every word", errors.getvalue())
 
 
 if __name__ == "__main__":

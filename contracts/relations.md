@@ -1,15 +1,19 @@
 # Objects and Relationships Contract
 
-Usage: [Connecting and finding records](../docs/relationships.md).
+Usage: `ws help relations` and `ws help relate`.
 
 Relations is its own layer, not a domain and not a service. It is not a
-domain because an edge carries an id rather than a REF, belongs to no kind,
-and is never shown or listed as an object. It is not a service because a
-service owns nothing canonical, while an edge is asserted by hand, exists
-nowhere else, and cannot be regenerated from any other store. Bare
-`ws relations` lists the relation vocabulary in use with per-word edge
-counts; the vocabulary is open, so that listing is read back from the edges
-themselves rather than from a fixed list.
+domain because an edge joins objects of any kinds and belongs to none; the
+universal tools address it by its own REF, `relation:<id>` (see Addressing
+an edge), but it is never searched or listed as an object. It is not a
+service because a service owns nothing canonical, while an edge is asserted
+by hand, exists nowhere else, and cannot be regenerated from any other
+store. Bare
+`ws relations` lists the relation vocabulary in use: each word, its edge
+count, and the kinds it connects, subject first (`person → organisation`),
+so a new edge can reuse a word the right way round. The vocabulary is open,
+so that listing is read back from the edges themselves rather than from a
+fixed list.
 
 This contract defines the shared object graph used by `ws`.
 
@@ -41,7 +45,7 @@ Canonical cross-domain edges have their own workspace-root store:
 
 The configured workspace root determines these default locations.
 Individual domains also have environment overrides; see
-[configuration](../docs/reference/configuration.md).
+configuration (`ws help configuration`).
 
 Override only the relationship store with `WS_RELATIONS_DIR`. Legacy records from `documents/Workspace/relations/` require explicit migration
 into this store; readers must not establish a second canonical edge store.
@@ -59,8 +63,37 @@ records its own depends-on edge.
 Relation types are free-form kebab-case; `ws relate` lowercases and hyphenates
 whatever follows `as` (or `--as`). Both endpoints must be canonical REFs.
 
-`ws unrelate` accepts the same endpoint grammar. Names, aliases, paths, and
-internal IDs are not accepted; use `ws search <query>` to discover each REF.
+Names, aliases, paths, and internal IDs are not accepted as endpoints; use
+`ws search <query>` to discover each REF.
+
+## Addressing an edge
+
+An edge's REF is `relation:<id>`: its record id without the `rel_` storage
+prefix, so `relation:01KYTNTBD9T7K071PSJ568ZDZ8` names
+`relations/rel_01KYTNTBD9T7K071PSJ568ZDZ8.yaml`. `ws relate` prints it, and
+`ws show REF` lists every edge touching an object by it, so the REF is at
+hand without a lookup command.
+
+- `ws show REF` prints the object, then `relations:` with one line per edge:
+  the edge's REF, `--words-->` for an edge leaving the object or
+  `<--words--` for one arriving, and the other endpoint with its name.
+  `--as WORD` narrows the list; `--json` carries it as `relations`.
+- `ws show relation:<id>` prints the edge in full: subject, words, object,
+  validity, source and provenance history.
+- `ws edit relation:<id>` changes the words (`--as`) and validity dates
+  (`--from`, `--until`), recording provenance (`--source`, `--observed-at`).
+- `ws delete relation:<id>` removes the edge and prints the `ws relate`
+  command that restores it; `--dry-run` previews.
+
+Edges are found through their endpoints: a relation REF is never a search
+hit or a `ws list` kind. The key accepts only an id's characters. The bare
+storage id (`rel_...`) also resolves, for output printed before relation
+REFs existed.
+
+The older spellings still run and name the current one on stderr:
+`ws show relations of REF` (the relations list alone), `ws unrelate` (by REF
+or by the sentence `A to B as WORDS`) and `ws relations edit RELATION_ID`.
+They are compatibility spellings, listed only by `ws capabilities --all`.
 
 ## Object records
 
@@ -113,20 +146,20 @@ true about a window of time — an ended relationship is still a true relation.
 A wrong or unwanted relationship is deleted.
 
 Do not duplicate a relationship into both endpoint object files.
-`ws show relations of REF`, `ws show relations of`, and `ws wiki build`
-assemble incoming and outgoing relationships at read time.
+`ws show REF` and `ws rebuild wiki` assemble incoming and outgoing
+relationships at read time.
 
 A relation is directional. It reads “SUBJECT relates to OBJECT as RELATION.” Repeating an
-identical relationship is idempotent. `ws unrelate` deletes the record and
-prints the exact `ws relate` command that would restore it (the store is not
-under git, so the hint is the undo path).
+identical relationship is idempotent. `ws delete relation:<id>` deletes the
+record and prints the exact `ws relate` command that would restore it (the
+store is not under git, so the hint is the undo path).
 
 ## Index and wiki
 
-`ws index rebuild` produces a derived SQLite index at `index/index.sqlite` by
+`ws rebuild index` produces a derived SQLite index at `index/index.sqlite` by
 default. It is never authoritative.
 
-`ws wiki build` renders direct Obsidian wikilinks between object notes. Raw
+`ws rebuild wiki` renders direct Obsidian wikilinks between object notes. Raw
 relationship records do not become Obsidian graph nodes. A canonical edge may
 be rendered in both endpoint notes because the generated Markdown is
 rebuildable.

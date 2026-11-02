@@ -2,6 +2,8 @@ import argparse
 import contextlib
 import io
 import json
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -11,7 +13,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ws_lib import anatomy, catalog, indexing, literature, relations, wiki
+from ws_lib import anatomy, catalog, indexing, literature, records, relations, wiki
 
 
 class GraphTests(unittest.TestCase):
@@ -377,8 +379,7 @@ class GraphTests(unittest.TestCase):
         for patcher in wiki_patchers:
             patcher.start()
         try:
-            with contextlib.redirect_stdout(io.StringIO()):
-                wiki.command_wiki(argparse.Namespace())
+            wiki.build()
         finally:
             for patcher in reversed(wiki_patchers):
                 patcher.stop()
@@ -406,6 +407,298 @@ class GraphTests(unittest.TestCase):
         self.assertEqual((moved, identical), (1, 0))
         self.assertFalse(source.exists())
         self.assertTrue((relations.RELATIONS / "rel_example.yaml").is_file())
+
+
+class RelationRefTests(unittest.TestCase):
+    """An edge is addressed like an object: `ws show REF` lists it under both
+    endpoints by its `relation:<id>` REF, and show, edit and delete take that
+    REF. relate still makes it."""
+
+    setUp = GraphTests.setUp
+    tearDown = GraphTests.tearDown
+    create_person = GraphTests.create_person
+
+    def edge(self, words: str = "works-at"):
+        person = self.create_person()
+        org = catalog.create_object("organisation", "ExampleCo", {"aliases": []})[0]
+        row, _ = relations.create(person.id, org.id, words)
+        return person, org, row
+
+    def run_command(self, func, **fields) -> tuple[str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch("ws_lib.anatomy.rebuild_documents"), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            func(argparse.Namespace(**fields))
+        return out.getvalue(), err.getvalue()
+
+    def show(self, *refs, relation=None, as_json=False) -> str:
+        return self.run_command(
+            catalog.command_show_any, objects=list(refs), relation=relation, json=as_json,
+        )[0]
+
+    def test_show_lists_relations_under_both_endpoints_by_their_ref(self) -> None:
+        person, org, row = self.edge()
+        ref = relations.ref_of(row)
+        self.assertTrue(ref.startswith("relation:") and "rel_" not in ref)
+
+        outgoing = self.show(person.ref)
+        self.assertIn("relations: 1", outgoing)
+        self.assertIn(f"{ref}  --works-at--> {org.ref} (ExampleCo)", outgoing)
+        incoming = self.show(org.ref)
+        self.assertIn(f"{ref}  <--works-at-- {person.ref} (Maria Schwarz)", incoming)
+
+    def test_show_as_narrows_the_relations_and_json_carries_them(self) -> None:
+        person, org, row = self.edge()
+        relations.create(person.id, org.id, "member-of")
+
+        narrowed = self.show(person.ref, relation="member-of")
+        self.assertIn("--member-of-->", narrowed)
+        self.assertNotIn("--works-at-->", narrowed)
+        data = json.loads(self.show(person.ref, as_json=True))
+        self.assertEqual(len(data["relations"]), 2)
+        self.assertIn(relations.ref_of(row), [edge["ref"] for edge in data["relations"]])
+
+    def test_vocabulary_names_the_kinds_each_word_connects(self) -> None:
+        person, org, _ = self.edge("works-at")
+        relations.create(person.id, org.id, "member-of")
+        out, _ = self.run_command(relations.command_relations_vocabulary)
+        self.assertRegex(out, r"works-at\s+1 edge\s+person → organisation")
+        self.assertIn("member-of", out)
+
+    def test_an_object_without_edges_says_so(self) -> None:
+        self.assertIn("relations: none", self.show(self.create_person().ref))
+
+    def test_show_relation_ref_prints_the_edge_in_full(self) -> None:
+        person, org, row = self.edge()
+        text = self.show(relations.ref_of(row))
+        self.assertIn(f"ref: {relations.ref_of(row)}", text)
+        self.assertIn(f"subject: {person.ref} (Maria Schwarz)", text)
+        self.assertIn("relation: works-at", text)
+        self.assertIn(f"object: {org.ref} (ExampleCo)", text)
+
+    def test_a_ref_naming_no_edge_is_refused(self) -> None:
+        for value in ("relation:01NOSUCHEDGE", "relation:../../escape"):
+            with self.subTest(value=value), self.assertRaises(SystemExit):
+                self.run_command(catalog.command_show_any, objects=[value], relation=None, json=False)
+
+    def test_edit_relation_ref_changes_words_and_dates(self) -> None:
+        _, _, row = self.edge()
+        out, _ = self.run_command(
+            catalog.command_edit_any,
+            object=relations.ref_of(row), flags=["--as", "Member Of", "--from", "2024-01-01"],
+        )
+        changed = relations.get(row["id"])
+        self.assertEqual(changed["relation"], "member-of")
+        self.assertEqual(changed["valid_from"], "2024-01-01")
+        self.assertIn(f"updated: {relations.ref_of(row)}", out)
+
+    def test_delete_relation_ref_removes_that_edge_only(self) -> None:
+        person, org, row = self.edge()
+        other, _ = relations.create(person.id, org.id, "member-of")
+
+        preview, _ = self.run_command(
+            catalog.command_delete_any, objects=[relations.ref_of(row)], dry_run=True,
+        )
+        self.assertIn("would delete", preview)
+        self.assertEqual(len(relations.load_all()), 2)
+        out, _ = self.run_command(
+            catalog.command_delete_any, objects=[relations.ref_of(row)], dry_run=False,
+        )
+        self.assertEqual([edge["id"] for edge in relations.load_all()], [other["id"]])
+        self.assertIn("restore with: ws relate", out)
+        self.assertIsNotNone(catalog.get(person.id))
+
+    def test_relate_prints_the_new_edges_ref(self) -> None:
+        person = self.create_person()
+        org = catalog.create_object("organisation", "ExampleCo", {"aliases": []})[0]
+        out, _ = self.run_command(
+            relations.command_relate,
+            references=[person.ref, "to", org.ref, "as", "works-at"], relation="",
+            valid_from=None, valid_until=None, source=None, observed_at=None, json=False,
+        )
+        self.assertIn(f"created: {relations.ref_of(relations.load_all()[0])}", out)
+
+    def test_older_spellings_still_run_and_name_the_current_one(self) -> None:
+        person, _, row = self.edge()
+        ref = relations.ref_of(row)
+
+        listed, note = self.run_command(
+            catalog.command_show_any, objects=["relations", "of", person.ref], relation=None, json=False,
+        )
+        self.assertIn(ref, listed)
+        self.assertIn(f"ws show {person.ref}", note)
+        # The storage id the older commands printed still names the edge.
+        _, note = self.run_command(relations.command_unrelate, references=[row["id"]], relation=None, dry_run=False)
+        self.assertEqual(relations.load_all(), [])
+        self.assertIn(f"ws delete {ref}", note)
+
+
+class FolderKindTests(unittest.TestCase):
+    """Projects and literature items are edited and deleted like any object:
+    a deleted folder goes to the Trash with its edges removed, and what the
+    Trash cannot undo is refused before anything moves."""
+
+    def setUp(self) -> None:
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.root = Path(self.tempdir.name)
+        self.projects = self.root / "projects" / "items"
+        self.projects.mkdir(parents=True)
+        self.items = self.root / "literature" / "items"
+        self.trash = self.root / "Trash"
+        self.trash.mkdir()
+        specs = {
+            name: {**spec, "dir": self.root / "data" / spec["plural"]}
+            for name, spec in catalog.SPECS.items()
+        }
+        self.patchers = [
+            mock.patch.object(catalog, "SPECS", specs),
+            mock.patch.object(catalog, "TRASH", self.trash),
+            mock.patch.object(catalog.project, "PROJECTS", self.projects),
+            mock.patch.object(catalog.project, "load_taxonomy", return_value=catalog.project.DEFAULT_TAXONOMY),
+            mock.patch.object(literature, "LITERATURE_ITEMS", self.items),
+            mock.patch.object(relations, "RELATIONS", self.root / "relations"),
+            mock.patch.object(relations.paths, "LEGACY_RELATIONS", self.root / "legacy-relations"),
+            mock.patch.object(indexing, "INDEX", self.root / "index.sqlite"),
+            mock.patch.object(anatomy, "rebuild_projects", return_value={}),
+            mock.patch.object(anatomy, "rebuild_literature", return_value={}),
+        ]
+        for patcher in self.patchers:
+            patcher.start()
+
+    def tearDown(self) -> None:
+        for patcher in reversed(self.patchers):
+            patcher.stop()
+        self.tempdir.cleanup()
+
+    def make_project(self, name: str, extra: str = "") -> Path:
+        root = self.projects / name
+        root.mkdir(parents=True)
+        (root / "project.yaml").write_text(
+            f"schema_version: 1\nname: {name}\ntitle: {name.title()}\ntype: research\n"
+            "status: active\ncreated: 2026-01-01\ndescription: >\n  One paragraph.\n\n"
+            f"fields: [physics]\nsubfields: []\nkeywords: []\n{extra}",
+            encoding="utf-8",
+        )
+        return root
+
+    def make_item(self, key: str) -> Path:
+        item = self.items / key
+        item.mkdir(parents=True)
+        (item / "citation.bib").write_text(
+            f"@article{{{key},\n  title = {{A Paper}},\n  year = {{2024}},\n}}\n", encoding="utf-8"
+        )
+        (item / "paper.pdf").write_bytes(b"%PDF-1.4")
+        return item
+
+    def run_command(self, func, **fields) -> tuple[str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            func(argparse.Namespace(**fields))
+        return out.getvalue(), err.getvalue()
+
+    def refused(self, func, **fields) -> str:
+        err = io.StringIO()
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err), \
+                self.assertRaises(SystemExit):
+            func(argparse.Namespace(**fields))
+        return err.getvalue()
+
+    def test_literature_item_goes_to_the_trash_with_its_edges(self) -> None:
+        item = self.make_item("Doe2024Example")
+        self.make_project("shuttling")
+        relations.create("project:shuttling", "literature:Doe2024Example", "references")
+
+        out, _ = self.run_command(catalog.command_delete_any, objects=["literature:Doe2024Example"], dry_run=False)
+        self.assertFalse(item.exists())
+        self.assertTrue((self.trash / "Doe2024Example" / "paper.pdf").is_file())
+        self.assertEqual(relations.load_all(), [])
+        self.assertIn("1 relation(s) removed", out)
+
+    def test_paper_behind_a_cv_entry_is_refused(self) -> None:
+        item = self.make_item("Mine2026")
+        profiles = Path(catalog.SPECS["profile"]["dir"])
+        profiles.mkdir(parents=True)
+        records.atomic_write(profiles / "my-paper.yaml", {
+            "schema_version": 1, "id": "profile_mypaper", "key": "my-paper", "kind": "profile",
+            "name": "My paper", "aliases": [], "type": "publication",
+        })
+        relations.create("profile_mypaper", "literature:Mine2026", "represents")
+
+        message = self.refused(catalog.command_delete_any, objects=["literature:Mine2026"], dry_run=False)
+        self.assertIn("CV entry profile:my-paper", message)
+        self.assertIn("first `ws delete relation:", message)
+        self.assertTrue(item.exists())
+
+    def test_project_folder_goes_to_the_trash(self) -> None:
+        root = self.make_project("shuttling")
+        out, _ = self.run_command(catalog.command_delete_any, objects=["project:shuttling"], dry_run=False)
+        self.assertFalse(root.exists())
+        self.assertTrue((self.trash / "shuttling" / "project.yaml").is_file())
+        self.assertIn("deleted: project:shuttling", out)
+
+    def test_a_project_others_depend_on_is_refused(self) -> None:
+        base = self.make_project("base")
+        self.make_project(
+            "user",
+            "\nproject_dependencies:\n  - project: base\n    kind: package\n    install: editable\n    path: .\n",
+        )
+        message = self.refused(catalog.command_delete_any, objects=["project:base"], dry_run=False)
+        self.assertIn("project:user depends on project:base", message)
+        self.assertTrue(base.exists())
+
+    def test_a_project_holding_subprojects_is_refused(self) -> None:
+        parent = self.make_project("parent")
+        (parent / "paper-x").mkdir()
+        (parent / "paper-x" / "subproject.yaml").write_text(
+            "schema_version: 1\nname: paper-x\ntype: subproject\nparent: parent\n", encoding="utf-8"
+        )
+        message = self.refused(catalog.command_delete_any, objects=["project:parent"], dry_run=False)
+        self.assertIn("subproject project:parent/paper-x", message)
+        self.assertTrue(parent.exists())
+
+    @unittest.skipUnless(shutil.which("git"), "needs git")
+    def test_git_work_that_exists_only_in_the_folder_is_named(self) -> None:
+        root = self.make_project("repo")
+        subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+        _, warnings = self.run_command(catalog.command_delete_any, objects=["project:repo"], dry_run=True)
+        self.assertIn("uncommitted change(s)", warnings)
+        self.assertIn("no remote", warnings)
+        self.assertTrue(root.exists())
+
+    def test_edit_project_sets_metadata_and_keeps_the_rest(self) -> None:
+        root = self.make_project("shuttling")
+        out, _ = self.run_command(
+            catalog.command_edit_any, object="project:shuttling",
+            flags=["--status", "archived", "--name", "Shuttling study",
+                   "--add-subfield", "spin-qubits", "--add-keyword", "Valley splitting"],
+        )
+        meta = catalog.project.parse_project_yaml(root / "project.yaml")
+        self.assertEqual(meta["status"], "archived")
+        self.assertEqual(meta["title"], "Shuttling study")
+        self.assertEqual(meta["subfields"], ["spin-qubits"])
+        self.assertEqual(meta["keywords"], ["Valley splitting"])
+        self.assertIn("  One paragraph.", (root / "project.yaml").read_text(encoding="utf-8"))
+        self.assertIn("updated: project:shuttling", out)
+
+    def test_edit_project_refuses_a_field_outside_the_taxonomy(self) -> None:
+        root = self.make_project("shuttling")
+        before = (root / "project.yaml").read_text(encoding="utf-8")
+        message = self.refused(catalog.command_edit_any, object="project:shuttling", flags=["--add-field", "astrology"])
+        self.assertIn("unknown field(s): astrology", message)
+        self.assertEqual((root / "project.yaml").read_text(encoding="utf-8"), before)
+
+    def test_edit_subproject_writes_its_own_file(self) -> None:
+        parent = self.make_project("parent")
+        (parent / "paper-x").mkdir()
+        sub_yaml = parent / "paper-x" / "subproject.yaml"
+        sub_yaml.write_text(
+            "schema_version: 1\nname: paper-x\ntype: subproject\nparent: parent\n"
+            "created: 2026-01-01\ndescription: >\n  Sub.\n",
+            encoding="utf-8",
+        )
+        self.run_command(catalog.command_edit_any, object="project:parent/paper-x", flags=["--status", "paused"])
+        self.assertEqual(catalog.project.parse_project_yaml(sub_yaml)["status"], "paused")
+        self.assertIn("  Sub.", sub_yaml.read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

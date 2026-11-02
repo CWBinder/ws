@@ -8,7 +8,7 @@ endpoint objects. The canonical record physically lives in:
 ```
 
 An object YAML therefore keeps its own facts. Incoming and outgoing
-relationships are joined when `show`, `search`, or `wiki build` runs.
+relationships are joined when `show`, `search`, or `rebuild wiki` runs.
 
 This makes the graph symmetrical without conflicting copies, lets a relation
 carry provenance and lifecycle data, and makes Obsidian/wiki output entirely

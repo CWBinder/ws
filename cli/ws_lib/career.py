@@ -296,16 +296,6 @@ def command_profile_edit(args: argparse.Namespace) -> None:
         print(f"updated: {edited.ref}")
 
 
-def command_profile_views_rebuild(args: argparse.Namespace) -> None:
-    counts = anatomy.rebuild_profile()
-    if args.json:
-        print(json.dumps({"root": str(CAREER), "links": counts}, indent=2))
-    else:
-        print(f"rebuilt: {rel_home(CAREER)}/by-*")
-        for name, count in sorted(counts.items()):
-            print(f"  {name}: {count} links")
-
-
 def findings() -> list[dict]:
     results = profile_taxonomy.findings()
     results.extend(catalog.findings({"profile"}))
@@ -947,7 +937,7 @@ def add_parser(sub: argparse._SubParsersAction, command_name: str = "career") ->
         description="Manage first-class profile objects and generate comprehensive CVs.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""Structure:
-  {rel_home(ITEMS)}/<profile-id>.yaml     canonical profile objects
+  {rel_home(ITEMS)}/<key>.yaml            canonical profile objects
   {rel_home(TAXONOMY)}                    allowed types and CV order
   {rel_home(APPLICATIONS)}/               deliberately unstructured
   {rel_home(CAREER)}/by-type/             disposable derived view
@@ -963,12 +953,6 @@ def add_parser(sub: argparse._SubParsersAction, command_name: str = "career") ->
     add_type = actions.add_parser("add-type", help="extend profile types")
     add_type.add_argument("value")
     add_type.set_defaults(func=profile_taxonomy.command_add_type)
-
-    views = actions.add_parser("views", help="manage the derived by-type view")
-    views_actions = views.add_subparsers(dest="profile_views_command", required=True)
-    rebuild = views_actions.add_parser("rebuild", help="rebuild the derived by-* browse views from current data")
-    rebuild.add_argument("--json", action="store_true")
-    rebuild.set_defaults(func=command_profile_views_rebuild)
 
     make_cv = actions.add_parser(
         "make-cv",

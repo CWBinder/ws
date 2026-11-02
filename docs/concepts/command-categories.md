@@ -10,10 +10,11 @@ a defect in the model, not a harmless omission (contracts/cli.md).
 
 **objects** — work on single objects and their edges: the CRUD verbs.
 `create` mints what does not exist yet, `add` ingests what already does,
-`show` renders, `edit` changes, `delete` removes, and `relate`/`unrelate`
-assert and retract edges. `ws relations` and `ws relations edit` file here
-too: edges are object-layer work. These are verbs, not places — they come
-directly after `ws` and never appear behind a domain word.
+`show` renders, `edit` changes, `delete` removes, and `relate` asserts an
+edge. Show, edit and delete also take an edge's own REF, `relation:<id>`.
+Bare `ws relations` files here too: edges are object-layer work. These are
+verbs, not places — they come directly after `ws` and never appear behind a
+domain word.
 
 **search** — find things. Where the objects verbs take one object by its
 REF, these take a kind or a bag of words and hand REFs back: `ws list
@@ -23,10 +24,11 @@ it names. Different inputs, different outputs — which is why CRUD's
 per-record R does not cover them.
 
 **maintenance** — initialise the workspace and maintain derived state:
-`ws init` creates missing infrastructure and saves the root; `ws index rebuild`
-(the search cache), `ws wiki build` (the Obsidian view), and `ws check`
-(validate state against the contracts). Index and wiki output can be regenerated from canonical stores. Initialisation
-preserves existing canonical settings and local instructions.
+`ws init` creates missing infrastructure and saves the root; `ws rebuild`
+regenerates the derived layers from the canonical stores (the browse views,
+the search cache, the Obsidian wiki and the dashboard, or one of them by name:
+`ws rebuild wiki`); and `ws check` validates state against the contracts.
+Initialisation preserves existing canonical settings and local instructions.
 
 
 **discovery** — learn the command surface from the CLI itself: `ws help`
@@ -41,9 +43,12 @@ maintenance`). Category words are operands of `capabilities`, not commands
 of their own.
 
 Note that the category tells you the *shape* of the command too. Objects
-and search commands are verb-first, followed by a REF or a kind word;
-maintenance and discovery commands are namespace-first
-(`ws index rebuild`, `ws wiki build`).
+and search commands are verb-first, followed by a REF or a kind word.
+Maintenance and discovery commands are verb-first as well, but what follows
+names a part of the workspace or of the CLI rather than an object: a derived
+layer (`ws rebuild wiki`), an area (`ws check anatomy`), or a command path
+(`ws describe add document`). Bare, `ws rebuild` and `ws check` cover every
+layer and area.
 
 ## What the workspace holds: domains and relations
 
@@ -67,10 +72,11 @@ ws profile make-cv                        render the CV
 **Relations** is the edge layer. It owns every edge between objects — and
 unlike everything maintenance rebuilds, a
 hand-asserted edge exists nowhere else and can never be regenerated. Edges
-are asserted with `ws relate`, removed with `ws unrelate`, updated with
-`ws relations edit`, and read with
-`ws show relations of REF`. Bare `ws relations` lists the relation
-vocabulary actually in use, with the number of edges carrying each word.
+are asserted with `ws relate` and listed under both endpoints by `ws show
+REF`, each by its own REF; `ws show`, `ws edit` and `ws delete` take that
+`relation:<id>` like any other REF. Bare `ws relations` lists the relation
+vocabulary actually in use: each word, the number of edges carrying it, and
+the kinds it connects, subject first.
 
 ## Ownership, in one question
 

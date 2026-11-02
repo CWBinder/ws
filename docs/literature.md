@@ -92,8 +92,10 @@ Manual editing is supported; run `ws check` afterward.
 
 ```bash
 ws relate project:<project-key> to literature:<key> as references
-ws show relations of project:<project-key>
+ws show project:<project-key>
 ```
+
+`show` lists the project's relations under its record, the new edge among them.
 
 Use this for structurally important project literature. A manuscript can keep
 its own buildable bibliography in its project; the global item remains canonical.
@@ -116,12 +118,24 @@ Use explicit relation edges for your own assertions such as `supersedes`.
 ## Browse and check
 
 ```bash
-ws literature views rebuild
+ws rebuild views literature
 ws check
 ```
 
 Browse by author, field/subfield, year or connected project. Views point to the
 same item folders; edit the items, not the generated trees. See
 [Browsing](browsing.md) for defaults and optional variations.
+
+## Remove a work
+
+```bash
+ws delete literature:<key> --dry-run
+ws delete literature:<key>
+```
+
+The item folder, with its PDF, source and notes, goes to the Trash; its
+relations are removed and the views rebuilt. A paper that supplies the
+citation of one of your profile publications is refused until you delete
+that `represents` relation, because the CV would silently lose the entry.
 
 Maintaining the implementation: [literature contract](../contracts/library.md).

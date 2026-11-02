@@ -92,7 +92,7 @@ descriptions, notes, specs, letters or generated CVs wherever useful within it.
 
 ```bash
 ws check profile
-ws profile views rebuild
+ws rebuild views profile
 ```
 
 Browse by type or connected organisation. The profile domain's Git setup is

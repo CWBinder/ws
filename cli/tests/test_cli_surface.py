@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ws_lib import catalog, registry
+from ws_lib import catalog, registry, relations
 
 
 def load_ws_module():
@@ -54,7 +54,7 @@ class CliSurfaceTests(unittest.TestCase):
     def test_canonical_global_namespaces_are_registered(self):
         self.assertTrue(
             {
-                "relations", "search", "check", "wiki",
+                "relations", "search", "check", "rebuild",
                 "completions",
             }.issubset(self.top)
         )
@@ -105,7 +105,37 @@ class CliSurfaceTests(unittest.TestCase):
 
     def test_search_accepts_unquoted_words_with_kind_scope_first(self):
         args = self.parse("search", "organizations", "Quantum", "Motion")
-        self.assertEqual(args.query, ["organizations", "Quantum", "Motion"])
+        self.assertEqual((args.scope, args.query), ("organizations", ["Quantum", "Motion"]))
+
+    def test_guesses_at_reading_edges_through_relations_point_at_show(self):
+        # `ws relations of REF` and `ws relations REF` once met a bare
+        # argparse `invalid choice`; `ws show REF` lists an object's edges.
+        for argv, expected in (
+            (["relations", "of", "person:maria-schwarz"], "try: ws show person:maria-schwarz"),
+            (["relations", "person:maria-schwarz", "--json"],
+             "try: ws show person:maria-schwarz --json"),
+            (["relations", "of"], "try: ws show REF"),
+        ):
+            with self.subTest(argv=argv):
+                errors = io.StringIO()
+                with contextlib.redirect_stderr(errors), self.assertRaises(SystemExit):
+                    relations.point_edge_reads_at_show(argv)
+                self.assertIn(expected, errors.getvalue())
+        for argv in (["relations"], ["relations", "edit", "rel_1"], ["relations", "-h"],
+                     ["show", "relations", "of", "person:maria-schwarz"]):
+            with self.subTest(argv=argv):
+                relations.point_edge_reads_at_show(argv)
+
+    def test_show_and_relations_help_say_how_edges_are_read(self):
+        # Edges are listed under their objects and addressed by their own REF;
+        # both places a person looks for them say so.
+        for command in ("show", "relations"):
+            with self.subTest(command=command):
+                buffer = io.StringIO()
+                with contextlib.redirect_stdout(buffer), self.assertRaises(SystemExit):
+                    self.parser.parse_args([command, "-h"])
+                self.assertIn("ws show relation:<id>", buffer.getvalue())
+                self.assertNotIn("show relations of", buffer.getvalue())
 
     def test_describe_exposes_contract_and_effects(self):
         args = self.parse(
@@ -199,7 +229,7 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertTrue(leaf["purpose"])
         self.assertNotEqual(leaf["purpose"], domain["purpose"])
 
-    def test_overview_is_one_text_everywhere(self):
+    def test_bare_help_extends_the_map_that_bare_ws_prints(self):
         from ws_lib import registry
 
         def rendered(function, *args):
@@ -212,8 +242,13 @@ class CliSurfaceTests(unittest.TestCase):
         bare_help = rendered(
             registry.command_help, argparse.Namespace(path=[], root_parser=self.parser)
         )
-        self.assertEqual(bare_ws, bare_help)
-        # The overview is a map: four sections, no tutorial prose.
+        # Bare `ws` prints the map; bare `ws help` prints the manual's
+        # overview text, then the same map (without its pointer to itself).
+        map_lines = [line for line in bare_ws.splitlines() if "ws help" not in line]
+        for line in map_lines:
+            self.assertIn(line, bare_help)
+        self.assertLess(bare_help.index("# The workspace"), bare_help.index("What you can do"))
+        # The map itself has four sections and no tutorial prose.
         for fragment in (
             "What you can do",
             "What the workspace holds",
@@ -235,13 +270,13 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertIn("ws show document:<key>", documents)
         self.assertIn("ws documents taxonomy", documents)
         self.assertNotIn("ws create document", " ".join(documents))
-        # The hand-curated kinds keep their limits.
+        # Every kind has the whole set of REF tools, the folder-backed ones too.
         projects = listing("projects")
         self.assertIn("ws create project", projects)
         self.assertIn("ws projects install", projects)
-        self.assertNotIn("ws edit project:<key>", projects)
-        self.assertNotIn("ws delete project:<key>", projects)
-        self.assertNotIn("ws delete literature:<key>", listing("literature"))
+        self.assertIn("ws edit project:<key>", projects)
+        self.assertIn("ws delete project:<key>", projects)
+        self.assertIn("ws delete literature:<key>", listing("literature"))
         # Kind words scope regardless of grammatical number, singular or plural.
         self.assertEqual(listing("person"), listing("people"))
         # A kind's home specialists ride along.
@@ -338,7 +373,7 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertEqual(registry.command_category(["list", "tasks"]), "search")
         self.assertEqual(registry.command_category(["search"]), "search")
         self.assertEqual(registry.command_category(["id", "resolve"]), "search")
-        self.assertEqual(registry.command_category(["index", "rebuild"]), "maintenance")
+        self.assertEqual(registry.command_category(["rebuild", "index"]), "maintenance")
         self.assertEqual(registry.command_category(["check"]), "maintenance")
         self.assertEqual(registry.command_category(["describe"]), "discovery")
         self.assertEqual(registry.command_category(["literature", "enrich"]), "literature")
@@ -369,7 +404,10 @@ class CliSurfaceTests(unittest.TestCase):
         ]
         self.assertEqual(
             set(maintenance),
-            {"ws init", "ws check", "ws index rebuild", "ws index stat", "ws wiki build"},
+            {
+                "ws init", "ws check", "ws index stat", "ws rebuild", "ws rebuild views",
+                "ws rebuild index", "ws rebuild wiki", "ws rebuild dashboard",
+            },
         )
         # Kind scoping still works and is not confused by category words.
         self.assertIn("ws documents taxonomy", listing("documents"))
@@ -459,8 +497,10 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertNotIn("refs", self.top)
         self.assertNotIn("migrate", subcommands(self.top["relations"]))
         self.assertFalse(hasattr(catalog, "migrate_refs"))
-        # Building the wiki has one spelling.
+        # Rebuilding the wiki has one current spelling; `ws wiki build` is
+        # its older alias and nothing else lives under `ws wiki`.
         self.assertEqual(set(subcommands(self.top["wiki"])), {"build"})
+        self.assertTrue(registry.is_compatibility_path(("wiki", "build")))
 
     def test_overview_teaches_the_flag_rule(self):
         buffer = io.StringIO()
@@ -616,19 +656,20 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertEqual(record["contract"], "contracts/objects.md")
         self.assertTrue(record["effects"]["destructive"])
 
-    def test_discovery_routes_to_shipped_usage_guides(self):
+    def test_discovery_routes_to_the_manual(self):
         source_root = Path(__file__).resolve().parents[2]
         for words in registry._canonical_capability_paths(self.parser):
             record = registry.command_record(self.parser, words)
             with self.subTest(command=record["command"]):
                 self.assertTrue((source_root / record["guide"]).is_file())
+                self.assertEqual(record["manual"], f"ws help {' '.join(words)}")
 
         for words, guide in (
-            (["add", "literature"], "docs/literature.md"),
-            (["create", "profile"], "docs/profile.md"),
-            (["projects", "install"], "docs/project-install.md"),
-            (["documents", "views", "rebuild"], "docs/browsing.md"),
-            (["init"], "GETTING-STARTED.md"),
+            (["create", "project"], "help/create/project.md"),
+            (["create", "subproject"], "help/create/subproject.md"),
+            (["projects", "install"], "help/projects/install.md"),
+            (["projects", "taxonomy"], "help/projects/taxonomy.md"),
+            (["projects", "check"], "help/projects.md"),
         ):
             with self.subTest(words=words):
                 record = registry.command_record(self.parser, words)
@@ -643,7 +684,8 @@ class CliSurfaceTests(unittest.TestCase):
         with mock.patch.object(paths, "SYSTEM", Path("/tmp/ws installation")):
             with contextlib.redirect_stdout(buffer):
                 args.func(args)
-        self.assertIn("guide: /tmp/ws installation/docs/documents.md", buffer.getvalue())
+        self.assertIn("manual: ws help add document", buffer.getvalue())
+        self.assertIn("guide: /tmp/ws installation/help/", buffer.getvalue())
 
     def test_choice_values_render_once_in_help(self):
         from ws_lib import document_taxonomy, profile_taxonomy

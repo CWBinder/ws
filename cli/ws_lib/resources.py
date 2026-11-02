@@ -8,7 +8,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from ws_lib import anatomy, catalog, indexing, paths, records
+from ws_lib import catalog, indexing, records
 
 
 def fail(message: str, code: int = 1) -> None:
@@ -110,16 +110,6 @@ def _rel_home(path: Path) -> str:
         return str(path)
 
 
-def command_views_rebuild(args: argparse.Namespace) -> None:
-    counts = anatomy.rebuild_resources()
-    if args.json:
-        print(json.dumps({"root": str(paths.RESOURCES), "links": counts}, indent=2))
-    else:
-        print(f"rebuilt: {_rel_home(paths.RESOURCES)}/by-*")
-        for name, count in sorted(counts.items()):
-            print(f"  {name}: {count} links")
-
-
 def add_parser(sub: argparse._SubParsersAction) -> argparse.ArgumentParser:
     parser = catalog.add_object_parser(
         sub,
@@ -140,9 +130,4 @@ def add_parser(sub: argparse._SubParsersAction) -> argparse.ArgumentParser:
     files_cmd.add_argument("resource", metavar="REF")
     files_cmd.add_argument("--json", action="store_true")
     files_cmd.set_defaults(func=command_files)
-    views = actions.add_parser("views", help="manage the derived by-* rings")
-    views_actions = views.add_subparsers(dest="resources_views_command", required=True)
-    rebuild = views_actions.add_parser("rebuild", help="rebuild the derived by-* browse views from current data")
-    rebuild.add_argument("--json", action="store_true")
-    rebuild.set_defaults(func=command_views_rebuild)
     return parser

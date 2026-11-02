@@ -368,7 +368,7 @@ ws add literature &lt;ARXIV-ID&gt; --full --field mathematics --subfield numeric
 ws edit literature:&lt;ItemKey&gt; --add-subfield numerics
 ws literature citations literature:&lt;ItemKey&gt; --in-library     # cited works you hold, as item keys
 ws literature cited-by literature:&lt;ItemKey&gt;                   # library items citing this one
-ws literature views rebuild</code></pre>
+ws rebuild views literature</code></pre>
 
   <h3 class="kind-head" id="projects">Project <span class="idform">project:&lt;name&gt;</span></h3>
   <p>The one container: any bounded undertaking that accumulates work-product in a folder and has
@@ -384,17 +384,18 @@ ws literature views rebuild</code></pre>
   workspace vocabulary (for example physics / spin-qubits or mathematics / tooling);
   <code>status</code> — idea, active,
   paused, complete, archived. Every project carries <code>project.yaml</code>,
-  <code>README.md</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>.gitignore</code>,
-  its own git repository, and only sanctioned optional folders
-  (<code>code/ paper/ data/ docs/ refs/ notes/ out/ tmp/</code>).</p>
+  <code>README.md</code>, <code>AGENTS.md</code>, <code>CLAUDE.md</code>, <code>LOG.md</code>,
+  <code>.gitignore</code>, its own git repository, and a minimum of standard folders
+  (<code>in/ out/</code>, plus <code>code/ data/ paper/ slides/</code> with their capabilities);
+  other folders are allowed.</p>
 <pre><code>ws create project                       # wizard: name, type, then type-aware questions
 ws create project community-workshop --type organizatorial --non-interactive
 ws list projects --type research --status active
-ws projects views rebuild</code></pre>
+ws rebuild views projects</code></pre>
   <p>The wizard's interview lives in code, not in a data file: every question is written once,
   and a small routing table maps each project type to the set of questions that apply — research
-  gets the code/venv/data battery, a talk only "has slides?", organizatorial asks which
-  organisations it is for and which event it organises, creating those edges on the spot. The
+  gets every question, exploration everything except the data question, a talk only "has slides?", organizatorial and other
+  nothing beyond the metadata. The
   taxonomy's only role is supplying the allowed answers for three questions (Type, Fields, Subfields, with
   the extend-offer on unknown values); the rest draw on different sources — free text (title,
   description, keywords), yes/no setup flags, and references that must resolve to existing

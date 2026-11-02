@@ -61,12 +61,12 @@ Beyond the core, a kind may define more — nothing else is universal:
 ## Acting on objects
 
 A tool whose operand is a full REF needs no domain prefix: the REF names
-its kind. `ws show`, `ws edit`, `ws delete`, `ws relate`, and `ws unrelate`
-are top-level tools. Show renders any REF — adapters like `project:` and
-`literature:` included — and takes several at once, mixing kinds. Edges
-are shown through the same tool in sentence form:
-`ws show relations of <kind>:<key>` (the `of` is optional filler, like
-relate's `to`), narrowed by `--as <relation>`. Edit
+its kind. `ws show`, `ws edit`, `ws delete` and `ws relate` are top-level
+tools. Show renders any REF — adapters like `project:` and `literature:`
+included — and takes several at once, mixing kinds. Each object is
+followed by its relations, every edge named by its own `relation:<id>` REF
+and the list narrowed by `--as <relation>`; show, edit and delete take that
+REF to act on one edge ([Addressing an edge](relations.md#addressing-an-edge)). Edit
 reads the kind from the REF and then accepts exactly that kind's flags
 (`ws edit document:<key> --help` lists them). A tool that acts on a kind
 rather than an object takes the kind as its first word instead:
@@ -83,22 +83,33 @@ generic tools of their own: what remains under a domain word is only what
 exists for that kind alone — taxonomy machinery, view rebuilds, and folder
 specialists (`ws literature enrich`, `ws documents types add`,
 `ws projects install`, `ws logistics people merge`, `ws profile make-cv`).
-The hand-curated kinds keep their
-limits: show renders every REF, but neither projects nor literature can be
-deleted, and a project has no edit at all — `ws edit literature:<key>`
-carries exactly literature's own classifier flags.
+Every kind takes show, edit and delete. The folder-backed kinds edit only
+the metadata that belongs to the catalog: `ws edit literature:<key>` carries
+literature's classifier flags, and `ws edit project:<key>` the name, lifecycle
+status, fields, subfields and keywords of `project.yaml` (`subproject.yaml`
+for a subproject), rewriting only those keys. Everything else in such a
+folder is edited in place.
 
 ## Removing objects
 
 `ws delete REF...` removes records outright, and with them every relation
 touching them — edges never dangle; one call may mix kinds. Deletion means
 deletion, and safety comes from recoverability, not friction: a document's
-managed file and a resource's whole folder are moved to the Trash rather
-than destroyed; `--dry-run` previews. `merge` is the different speech act:
-it says "duplicate" — identity redirects to the canonical record and a
-`merged` tombstone remains — where delete says "should not exist". Projects
-and literature have no delete: a project retires through its lifecycle
-status, a literature item by hand.
+managed file and the whole folder of a resource, literature item or project
+are moved to the Trash rather than destroyed; `--dry-run` previews. `merge`
+is the different speech act: it says "duplicate" — identity redirects to the
+canonical record and a `merged` tombstone remains — where delete says
+"should not exist".
+
+Recoverability cannot undo breakage elsewhere, so delete refuses, before
+anything moves, what would quietly break another record: a project that
+another project installs or lists under `depends_on`, a project holding
+subprojects (delete those first), and a literature item that supplies the
+citation of a profile publication (delete that `represents` edge first).
+Deleting a project also names on stderr the git work that exists only in its
+folder: uncommitted changes, and history no remote holds. A project that is
+finished rather than wrong retires through its lifecycle status
+(`ws edit project:<key> --status archived`).
 
 ## Adapters
 
@@ -160,3 +171,8 @@ a classifier there needs curated values.
 
 Edges are never fields: anything pointing at another object is a relation in
 `~/workspace/relations/`.
+
+Two further aspects live outside the record too: a folder-backed object may
+keep its purpose and its log as notes in its folder's `.context/`
+([context contract](context.md)). `ws show ASPECT of REF` prints one of them
+in full, and `ws context REF` all of an object's aspects as one briefing.

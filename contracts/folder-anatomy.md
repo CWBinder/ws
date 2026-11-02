@@ -1,6 +1,6 @@
 # Folder Anatomy Contract
 
-Usage and optional view customisation: [Browsing](../docs/browsing.md).
+Usage and optional view customisation: `ws help rebuild views`.
 
 The shape of every derived `by-*` browse tree is data, declared in one
 canonical, hand-edited file at the workspace root:

@@ -30,6 +30,7 @@ the installed CLI supplies the current command syntax.
 | Find, import, read and connect papers/books | [Literature](literature.md) |
 | Maintain career facts and generate a CV | [Profile and CVs](profile.md) |
 | Search for context and connect records | [Relationships and retrieval](relationships.md) |
+| Brief a session on where it is: purpose, log, house rules | [Briefing a session](context.md) |
 | Browse folders or change their arrangement | [Browsing](browsing.md) |
 | Generate a Markdown wiki | [Wiki](visualization.md) |
 | Inspect paths or optional settings | [Configuration](reference/configuration.md) |

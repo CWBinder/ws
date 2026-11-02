@@ -1,8 +1,5 @@
 """Wiki rendering for literature metadata and derived profile selection."""
 
-import argparse
-import contextlib
-import io
 import sys
 import tempfile
 import unittest
@@ -64,8 +61,7 @@ class WikiLiteratureTests(unittest.TestCase):
     def test_wiki_indexes_authors_year_and_fields_without_collections(self) -> None:
         self.write_item()
 
-        with contextlib.redirect_stdout(io.StringIO()):
-            wiki.command_wiki(argparse.Namespace())
+        wiki.build()
 
         literature_index = (self.generated / "Literature.md").read_text(encoding="utf-8")
         literature_page = (self.generated / "literature" / "literature-Smith2024AI.md").read_text(encoding="utf-8")

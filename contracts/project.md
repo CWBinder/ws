@@ -1,7 +1,7 @@
 # Project Contract
 
-Usage: [Project setup](../docs/project-setup.md) and
-[installing capabilities](../docs/project-install.md).
+Usage: `ws help projects`, `ws help create project` and
+`ws help projects install`.
 
 The projects domain root holds the flat canonical store, the derived browse
 trees, and the taxonomy:
@@ -22,7 +22,7 @@ WS_PROJECTS_DIR
 ```
 
 The workspace root resolves from environment, saved configuration, then the
-default; see [configuration](../docs/reference/configuration.md).
+default; see `ws help configuration`.
 
 `WS_PROJECTS_DIR` points at the store; the domain root is its parent unless
 `WS_PROJECTS_DOMAIN` overrides it.
@@ -49,10 +49,12 @@ it carries a `subproject.yaml`, **not** a `project.yaml`, which keeps the
 structural relationship: discovery keeps the enclosing project as the parent
 (so the subproject never appears in `ws list projects`, and `ws projects
 install` run from inside it sets up the *parent's* environment). It has its
-own `code/`, `data/`, and `results/` and **its own git repository, ignored by
+own `LOG.md`, `in/`, `code/`, `data/` and `out/`, with the meanings in
+[Folders](#folders), and **its own git repository, ignored by
 the parent's** (`create-subproject` runs `git init` and appends the
 subproject's path to the parent's `.gitignore`), but no `.venv` of its own
-(`subproject.yaml` records the parent's, e.g. `venv: ../../.venv`).
+(`subproject.yaml` records the parent's, e.g. `venv: ../../.venv`). Older
+subprojects carry `results/` instead of `out/`; it stays valid.
 
 Identity-wise a subproject *is* a project: the catalog projects it as
 `project:<parent-relpath>/<sub-relpath>`, so it resolves, relates to any other
@@ -75,29 +77,58 @@ project.yaml
 README.md
 AGENTS.md
 CLAUDE.md
+LOG.md
 .gitignore
 ```
 
 `CLAUDE.md` is a symlink to `AGENTS.md` (on Windows, an `@AGENTS.md` import instead), so Claude Code reads the same instructions. Both files must convey the same project instructions.
 
-## Allowed Optional Top-Level Folders
+## Folders
+
+Every project starts with a bare minimum of folders, each with one fixed
+meaning. They are a floor, not a ceiling.
+
+Always created:
 
 ```text
-code/
-paper/
-data/
-docs/
-refs/
-notes/
-out/
-tmp/
+in/      inputs the work consumes: device designs, external data, parameters
+out/     finished outputs: final figures, tables and results to hand on
 ```
 
-`ws create project` creates `code/`, `paper/`, and `data/` only when their corresponding `--has-code`, `--has-paper`, or `--has-data` flag is supplied. Other allowed folders are created when first needed. The default scaffold contains no empty optional folders.
+Created with their capability:
 
-This keeps project creation minimal and modular. Git does not track empty directories, and `out/` and `tmp/` are intentionally ignored.
+```text
+code/    has_code     source code
+data/    has_data     intermediate results
+paper/   has_paper    manuscript
+slides/  has_slides   deck build scripts, slide assets, and the built decks
+```
 
-No other top-level project folders by default.
+Conventional, created when first needed:
+
+```text
+docs/    stable documentation
+refs/    small local references, e.g. a manuscript's bibliography
+tmp/     disposable scratch
+```
+
+Material flows `in/` → `data/` → `out/`: `in/` holds what the work starts
+from and cannot regenerate, `data/` what it produces along the way, `out/`
+what it delivers.
+
+`ws create project` creates the always-created folders and those of the
+requested capabilities, each with a `.gitkeep` so the layout survives a
+clone; `ws projects install` materializes the same set on an existing
+project. Wherever one of these folders exists, it has the meaning above, and
+material goes in the standard folder that fits it.
+
+Other top-level folders are allowed (for example `notes/`, or `src/` and
+`tests/` in a software project). A person may add any folder. An agent adds
+one only when no standard folder fits, and records the folder and the reason
+in `LOG.md`. ws neither creates nor flags them.
+
+`notes/` is no longer a conventional folder: kept working notes belong in
+`LOG.md`. Existing `notes/` folders stay valid.
 
 ## `project.yaml`
 
@@ -144,6 +175,7 @@ Default `type` values ("what kind of undertaking is this?"):
 
 ```text
 research
+exploration
 paper
 talk
 software
@@ -236,7 +268,9 @@ references fail before writes. The enclosing project is the default target,
 including when invoked within a subproject.
 
 `has_slides: true` means the project builds decks with the `slide_factory`
-generator: creation and `ws projects install` editable-install it from
+generator. Creation and `ws projects install` create `slides/`, which holds
+the deck build scripts, slide-only assets and the built decks (the decks
+themselves are ignored by git). They also editable-install the generator from
 `packages/slide_factory/` in the ws checkout into the project's `.venv`, then
 editable-install every theme package listed under `slides.themes` in the
 private ws configuration (project REFs or paths; a missing entry warns and is
@@ -255,6 +289,16 @@ Literature links are canonical `references` edges in the relations service, crea
 
 Allowed `status` values are defined in `statuses.md`.
 
+`ws edit project:<key>` changes the catalog metadata of `project.yaml`
+(`subproject.yaml` for a subproject): `--name` (the title), `--status`, and
+added or removed fields, subfields and keywords, validated against the shared
+taxonomy. It rewrites only those keys and preserves every other line.
+`ws delete project:<key>` moves the folder to the Trash under the guards in
+[Removing objects](objects.md#removing-objects): refused while another
+project installs or depends on it or while it holds subprojects, and naming
+git work that exists only in the folder. A finished project retires through
+its status instead.
+
 ## `README.md`
 
 Human-readable project overview.
@@ -272,12 +316,37 @@ Project-wide instructions.
 
 Should contain:
 
-- read-first list
-- allowed folders
+- read-first list, with `LOG.md` right after `README.md`
+- the standard folders and their meanings
+- the logging rule: add a `LOG.md` entry before ending a working session
 - project-specific safety rules
 - testing/build/review expectations
 
-Project `AGENTS.md` should not accumulate session-specific state or durable agent memory.
+Project `AGENTS.md` should not accumulate session-specific state or durable
+agent memory; that belongs in `LOG.md`.
+
+## `LOG.md`
+
+The project's running record, so that a person or agent resuming the project
+can understand its scope and state without replaying its history. `README.md`
+keeps the stable overview and `AGENTS.md` the standing instructions; `LOG.md`
+keeps what happened.
+
+Newest entry first. Each working session that changes the project, or decides
+something about it, adds one dated entry before it ends:
+
+```markdown
+## YYYY-MM-DD · <host>
+
+- Did: what changed
+- Decided: decisions taken, and why
+- Next: open threads
+```
+
+An entry also names any new top-level folder and why it was needed. Entries
+are added, not rewritten; when the log grows long, older entries may be
+condensed into one summary entry. `ws create project` writes the first entry.
+`LOG.md` is tracked in git.
 
 ## Git Boundary and Sync
 
@@ -292,32 +361,43 @@ project.yaml
 README.md
 AGENTS.md
 CLAUDE.md        (symlink to AGENTS.md)
+LOG.md           (project log)
+in/              (inputs; heavy files excepted, see below)
+code/  paper/    (unless nested repositories, see below)
+slides/          (build scripts and assets; built decks excepted)
 docs/            (stable docs)
-notes/           (kept working notes)
 refs/            (small local references)
 ```
 
 Never tracked:
 
 ```text
-data/**          (heavy data; see allowlist below)
-out/             (regenerable outputs)
+data/**          (intermediate results; manifest layer only)
+out/**           (finished outputs; manifest layer only)
+slides/**/*.pptx (built decks)
 tmp/             (scratch)
 .claude/ .codex/ (agent sessions)
 nested repos     (see below)
 ```
 
-`data/` keeps only a manifest layer in git, via this `.gitignore` pattern:
+`data/` and `out/` keep only a manifest layer in git — Markdown files that
+describe their contents, and `.gitkeep` — via this `.gitignore` pattern:
 
 ```gitignore
 data/**
-!data/
-!data/README.md
+!data/**/
 !data/**/*.md
 !data/**/.gitkeep
+out/**
+!out/**/
+!out/**/*.md
+!out/**/.gitkeep
 ```
 
-Tiny curated data files go in `refs/` or `docs/`, or are force-added explicitly.
+`in/` is tracked because inputs usually cannot be regenerated. An input too
+heavy for git (see the 5 MB check below) is ignored by its own `.gitignore`
+line and listed under `sync.data`, so it travels by rsync instead. Small
+curated data goes in `in/`.
 
 ### Nested repositories
 
@@ -328,7 +408,7 @@ A project may contain its own sub-repositories — for example `paper/` cloned f
 `ws sync` (planned) uses two channels and never conflates them:
 
 - **git channel** — repos sync via `git push`/`pull` to their remotes (the parent repo and each nested repo independently). Never rsync `.git/`.
-- **rsync channel** — gitignored heavy data (`data/`, `out/`) syncs via rsync with `--exclude .git`.
+- **rsync channel** — gitignored heavy data (`data/`, `out/`, and heavy inputs listed under `sync.data`) syncs via rsync with `--exclude .git`.
 
 This is declared in `project.yaml`:
 
@@ -350,8 +430,32 @@ Use:
 ```text
 ~/Projects/ws/templates/project.yaml
 ~/Projects/ws/templates/AGENTS.md
+~/Projects/ws/templates/LOG.md
 ~/Projects/ws/templates/gitignore
 ```
+
+## Layout migration: `LOG.md`, `in/`, `out/`, `slides/`
+
+Projects created before `LOG.md`, `in/` and `out/` became standard stay
+readable. `project.yaml` gains no keys, so `schema_version` stays `1`.
+
+- `ws projects check` reports a missing `LOG.md` as a problem, like any other
+  required file, and names the command that adds it. A missing `in/`, `out/`,
+  or `slides/` (when `has_slides`) is a note.
+- `ws projects install project:<key>`, with no capability words, adds what is
+  missing: `LOG.md` with a first entry pointing at the git history and
+  `README.md`; `in/` and `out/` (and `slides/` when `has_slides`) with
+  `.gitkeep`; the missing ignore lines in `.gitignore` (the `out/**` manifest
+  pattern replaces a bare `out/` line, and `slides/**/*.pptx` is added).
+  In `AGENTS.md`, the rule lines of the previous template are replaced where
+  they appear verbatim, and the new rules are appended where they do not.
+- It never moves, renames or deletes content. Existing `notes/`, `results/`,
+  decks under `out/slides/`, and inputs kept elsewhere stay where they are
+  until someone moves them on purpose.
+- Replacing `out/` with the `out/**` manifest pattern keeps every existing file
+  ignored; only Markdown files and `.gitkeep` under `out/` become trackable.
+- Every change lands in the project's own working tree and shows in its
+  `git diff`; restoring those files undoes it.
 
 ## Browse Views
 

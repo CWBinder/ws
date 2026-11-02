@@ -27,7 +27,7 @@ PROJECT_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PROJECT_STATUSES = ["idea", "active", "paused", "complete", "archived"]
 PROJECT_DEPENDENCY_KINDS = ["package"]
 DEFAULT_TAXONOMY = {
-    "type": ["research", "paper", "talk", "software", "teaching", "organizatorial", "other"],
+    "type": ["research", "exploration", "paper", "talk", "software", "teaching", "organizatorial", "other"],
     "fields": ["physics", "mathematics", "computer-science", "ai", "humanities"],
     "subfields": {
         "physics": [
@@ -58,16 +58,139 @@ def today() -> str:
     return dt.date.today().isoformat()
 
 
-def requested_project_dirs(has_code: bool, has_paper: bool, has_data: bool) -> list[str]:
+def requested_project_dirs(has_code: bool, has_paper: bool, has_data: bool, has_slides: bool = False) -> list[str]:
+    """The standard folders a project starts with: in/ and out/ always, the
+    rest with their capability. They are a floor; other folders are allowed."""
     return [
         folder
         for folder, enabled in (
+            ("in", True),
             ("code", has_code),
-            ("paper", has_paper),
             ("data", has_data),
+            ("out", True),
+            ("paper", has_paper),
+            ("slides", has_slides),
         )
         if enabled
     ]
+
+
+def make_project_dirs(root: Path, folders: list[str]) -> None:
+    """Create each missing folder with a .gitkeep, so the layout survives a clone."""
+    for folder in folders:
+        path = root / folder
+        if path.exists():
+            print(f"exists: {rel_home(path)}/")
+            continue
+        path.mkdir()
+        (path / ".gitkeep").write_text("", encoding="utf-8")
+        print(f"created: {rel_home(path)}/")
+
+
+def write_project_log(root: Path, title: str, entry: str) -> None:
+    content = read(TEMPLATES / "LOG.md")
+    for key, value in {
+        "<Project Title>": title,
+        "<log-date>": today(),
+        "<log-host>": paths.HOST,
+        "<log-entry>": entry,
+    }.items():
+        content = content.replace(key, value)
+    write_new(root / "LOG.md", content)
+
+
+# Ignore rules every project carries for its standard folders; layout
+# migration adds whichever block a project's .gitignore lacks.
+OUT_IGNORE_BLOCK = [
+    "# Finished outputs: ignore contents, keep only the manifest layer",
+    "out/**",
+    "!out/**/",
+    "!out/**/*.md",
+    "!out/**/.gitkeep",
+]
+SLIDES_IGNORE_BLOCK = [
+    "# Built slide decks (the build scripts in slides/ are tracked)",
+    "slides/**/*.pptx",
+]
+
+# Rule lines of the AGENTS.md template before LOG.md, in/ and out/ became
+# standard. Layout migration removes them where they appear verbatim.
+RETIRED_AGENTS_RULES = {
+    "- do not create unauthorized top-level folders",
+    "- put stable docs in docs/",
+    "- put transient notes in notes/",
+    "- put generated outputs in out/",
+    "- put disposable scratch in tmp/",
+}
+RETIRED_AGENTS_MEMORY_LINE = "- do not store agent memory in this file"
+
+
+def agents_template_blocks(*headings: str) -> list[str]:
+    """The named blocks ("Folders:", "Log:") of the AGENTS.md template, so
+    migration writes exactly what creation writes."""
+    blocks = read(TEMPLATES / "AGENTS.md").split("\n\n")
+    return [block.strip("\n") for block in blocks if block.lstrip().split("\n", 1)[0] in headings]
+
+
+def migrate_gitignore(root: Path) -> bool:
+    path = root / ".gitignore"
+    lines = read(path).splitlines() if path.exists() else []
+    stripped = [line.strip() for line in lines]
+    changed = False
+    if "out/**" not in stripped:
+        if "out/" in stripped:
+            at = stripped.index("out/")
+            lines[at:at + 1] = OUT_IGNORE_BLOCK[1:]
+            if at and stripped[at - 1] == "# Generated outputs and scratch":
+                lines[at - 1] = "# Finished outputs (only the manifest layer is tracked) and scratch"
+        else:
+            lines += [""] + OUT_IGNORE_BLOCK
+        changed = True
+    if "slides/**/*.pptx" not in stripped:
+        lines += [""] + SLIDES_IGNORE_BLOCK
+        changed = True
+    if changed:
+        path.write_text("\n".join(lines).strip("\n") + "\n", encoding="utf-8")
+    return changed
+
+
+def migrate_agents_md(root: Path) -> bool:
+    path = root / "AGENTS.md"
+    if not path.exists() or path.is_symlink():
+        return False
+    text = read(path)
+    if "LOG.md" in text:
+        return False
+    lines = [line for line in text.splitlines() if line.strip() not in RETIRED_AGENTS_RULES]
+    lines = [
+        "- do not store agent memory or session state in this file; that goes in LOG.md"
+        if line.strip() == RETIRED_AGENTS_MEMORY_LINE else line
+        for line in lines
+    ]
+    stripped = [line.strip() for line in lines]
+    if "- README.md" in stripped:
+        at = stripped.index("- README.md") + 1
+        lines.insert(at, "- LOG.md (newest entries first; read until you know the current state)")
+        stripped.insert(at, lines[at])
+    new_blocks = "\n\n".join(agents_template_blocks("Folders:", "Log:")).splitlines()
+    if "Rules:" in stripped:
+        at = stripped.index("Rules:")
+        lines[at:at] = new_blocks + [""]
+    else:
+        lines += [""] + new_blocks
+    path.write_text("\n".join(lines).rstrip("\n") + "\n", encoding="utf-8")
+    return True
+
+
+def migrate_project_layout(root: Path, title: str) -> None:
+    """Bring a project created before LOG.md, in/ and out/ were standard up
+    to the current layout. Additive only: nothing is moved or deleted."""
+    if not (root / "LOG.md").exists():
+        write_project_log(root, title, "- Did: started this log. Earlier history is in the git log and README.md.")
+    if migrate_gitignore(root):
+        print(f"updated: {rel_home(root / '.gitignore')}")
+    if migrate_agents_md(root):
+        print(f"updated: {rel_home(root / 'AGENTS.md')}")
 
 
 def fail(message: str, code: int = 1) -> None:
@@ -389,7 +512,8 @@ FULL_QUESTION_SET = frozenset({
     "code", "python", "venv", "deps", "paper", "data", "slides", "server",
 })
 TYPE_QUESTION_SETS = {
-    "research": {"code", "python", "venv", "deps", "data", "server"},
+    "research": {"code", "python", "venv", "deps", "paper", "data", "slides", "server"},
+    "exploration": {"code", "python", "venv", "deps", "paper", "slides", "server"},
     "paper": {"code", "python", "venv", "deps"},
     "talk": {"slides"},
     "software": {"code", "python", "venv", "deps"},
@@ -744,27 +868,21 @@ def record_project_dependencies(root: Path, dependencies: list[dict[str, str]]) 
 
 
 def converge_project_installs(root: Path) -> bool:
-    """(Re)materialize what project.yaml records: capability folders, Python
-    scaffolding, the venv, package dependencies, and the slide generator.
-    Returns False when the file records nothing installable."""
+    """(Re)materialize what project.yaml records: the standard layout (LOG.md,
+    in/, out/, ignore rules), capability folders, Python scaffolding, the
+    venv, package dependencies, and the slide generator. Returns False when
+    the file records no capability beyond the standard layout."""
     meta = parse_project_yaml(root / "project.yaml")
     runtime = meta.get("runtime", {})
-    wanted_dirs = requested_project_dirs(
-        meta["has_code"] == "true", meta["has_paper"] == "true", meta["has_data"] == "true"
-    )
+    capabilities = [meta[key] == "true" for key in ("has_code", "has_paper", "has_data", "has_slides")]
+    migrate_project_layout(root, meta.get("title") or project_title(root.name, None))
+    make_project_dirs(root, requested_project_dirs(*capabilities))
     python_wanted = runtime.get("python") == "true"
     venv_wanted = bool(runtime.get("venv"))
     dependencies = [dep for dep in meta.get("project_dependencies", []) if dep.get("kind") == "package"]
     slides_wanted = meta["has_slides"] == "true"
-    if not (wanted_dirs or python_wanted or venv_wanted or dependencies or slides_wanted):
+    if not (any(capabilities) or python_wanted or venv_wanted or dependencies):
         return False
-    for folder in wanted_dirs:
-        path = root / folder
-        if path.exists():
-            print(f"exists: {rel_home(path)}/")
-        else:
-            path.mkdir()
-            print(f"created: {rel_home(path)}/")
     if python_wanted:
         create_python_project_files(root, root.name)
     if venv_wanted or dependencies or slides_wanted:
@@ -1109,16 +1227,6 @@ def command_project_list(args: argparse.Namespace) -> None:
         print(f"project:{name}")
 
 
-def command_project_views_rebuild(args: argparse.Namespace) -> None:
-    use_projects_dir(args)
-    from ws_lib import anatomy
-
-    counts = anatomy.rebuild_projects()
-    print(f"views: {rel_home(anatomy.PROJECTS_DOMAIN)}/by-*")
-    for name in sorted(counts):
-        print(f"{name}: {counts[name]}")
-
-
 def _print_list(label: str, values: list[str]) -> None:
     print(f"{label}: {', '.join(values) if values else '-'}")
 
@@ -1170,23 +1278,144 @@ def command_project_show(args: argparse.Namespace) -> None:
         print("  -")
 
 
-SUBPROJECT_DIRS = ["code", "data", "results"]
+# Keys `ws edit project:<key>` may insert, in file order. `description` is a
+# folded block, so it is never an anchor: a key inserted after it would land
+# inside the block.
+PROJECT_EDIT_KEY_ORDER = ("schema_version", "name", "title", "type", "status", "created", "fields", "subfields", "keywords")
 
-# Folders never scanned for subprojects: a project's standard content folders
-# plus dependency/noise dirs. A grouping folder must not use one of these names.
-SUBPROJECT_SCAN_SKIP = {"code", "paper", "data", "docs", "refs", "notes", "results", "out", "tmp", "node_modules", "__pycache__"}
+
+def project_edit_arguments(edit: argparse.ArgumentParser) -> None:
+    """`ws edit project:<key>`: the metadata that changes over a project's
+    life. Everything else lives in the folder and is edited there."""
+    edit.add_argument("--name", dest="title", help="new display title")
+    edit.add_argument(
+        "--status", choices=PROJECT_STATUSES, metavar="STATUS",
+        help=f"lifecycle status, one of: {', '.join(PROJECT_STATUSES)}",
+    )
+    for noun, source in (
+        ("field", "from the shared taxonomy (`ws projects taxonomy`)"),
+        ("subfield", "belonging to a selected field"),
+        ("keyword", "free text"),
+    ):
+        edit.add_argument(f"--add-{noun}", action="append", default=[], help=f"add a {noun}, {source}; repeatable")
+        edit.add_argument(f"--remove-{noun}", action="append", default=[], help=f"remove a {noun}; repeatable")
+
+
+def command_project_edit(args: argparse.Namespace) -> None:
+    """Rewrite only the named keys of project.yaml (subproject.yaml for a
+    subproject), preserving every other line."""
+    from ws_lib import anatomy, catalog
+
+    ref = catalog.resolve(args.ref, "project")
+    path = ref.path
+    meta = parse_project_yaml(path)
+    changes: dict[str, str] = {}
+    if args.title is not None:
+        if not args.title.strip():
+            fail("--name needs a title")
+        changes["title"] = yaml_scalar(args.title.strip())
+    if args.status:
+        changes["status"] = args.status
+    lists: dict[str, list[str]] = {}
+    for key, noun, fold in (("fields", "field", True), ("subfields", "subfield", True), ("keywords", "keyword", False)):
+        clean = (lambda value: value.strip().lower()) if fold else (lambda value: value.strip())
+        added = [clean(value) for value in getattr(args, f"add_{noun}") if value.strip()]
+        removed = {clean(value) for value in getattr(args, f"remove_{noun}") if value.strip()}
+        if added or removed:
+            values = [value for value in meta.get(key, []) if value not in removed]
+            lists[key] = values + [value for value in dict.fromkeys(added) if value not in values]
+    if not changes and not lists:
+        fail("nothing to edit; pass --name, --status, or --add-/--remove- a field, subfield or keyword")
+    if "fields" in lists or "subfields" in lists:
+        problems = classification_problems(
+            lists.get("fields", meta.get("fields", [])), lists.get("subfields", meta.get("subfields", []))
+        )
+        if problems:
+            fail("; ".join(problems) + " (extend with `ws projects add-field` / `add-subfield`)")
+    changes.update({key: yaml_list(values) for key, values in lists.items()})
+    lines = read(path).splitlines()
+    touched = [key for key, value in changes.items() if _set_yaml_key(lines, key, value, PROJECT_EDIT_KEY_ORDER)]
+    if not touched:
+        print(f"unchanged: {ref.ref}")
+        return
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    anatomy.rebuild_projects()
+    print(f"updated: {ref.ref} ({', '.join(touched)})")
+
+
+def dependents(ref) -> list[str]:
+    """Projects that would break if this one went: those installing it as a
+    package or listing it under depends_on, and depends-on edges into it."""
+    from ws_lib import relations
+
+    found = []
+    for name in existing_project_names():
+        if name == ref.key:
+            continue
+        meta = parse_project_yaml(PROJECTS / name / "project.yaml")
+        needs = {str(dep.get("project", "")) for dep in meta.get("project_dependencies", [])}
+        needs |= {value.removeprefix("project:") for value in meta.get("depends_on", [])}
+        if ref.key in needs:
+            found.append(f"project:{name}")
+    for edge in relations.edges_of(ref.id, "depends-on"):
+        if edge["direction"] == "in" and edge["other"].startswith("project:"):
+            found.append(edge["other"])
+    return sorted(set(found))
+
+
+def git_warnings(root: Path) -> list[str]:
+    """What moving this folder away would take that exists nowhere else:
+    uncommitted work, and history that no remote holds."""
+    if root.is_symlink() or not (root / ".git").exists():
+        return []
+
+    def git(*words: str) -> str | None:
+        try:
+            done = subprocess.run(
+                ["git", "-C", str(root), *words], capture_output=True, text=True, timeout=30,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+        return done.stdout.strip() if done.returncode == 0 else None
+
+    warnings = []
+    changed = git("status", "--porcelain")
+    if changed:
+        warnings.append(f"{len(changed.splitlines())} uncommitted change(s)")
+    if not git("remote"):
+        warnings.append("its git history has no remote, so this folder is the only copy")
+    else:
+        ahead = git("rev-list", "--count", "@{upstream}..HEAD")
+        if ahead is None:
+            warnings.append("the branch tracks no remote, so its commits may exist only here")
+        elif ahead != "0":
+            warnings.append(f"{ahead} commit(s) not pushed")
+    return warnings
+
+
+SUBPROJECT_DIRS = ["in", "code", "data", "out"]
+
+# Folders never scanned for subprojects: a project's standard content folders,
+# legacy ones (notes/, results/), plus dependency/noise dirs. A grouping folder
+# must not use one of these names.
+SUBPROJECT_SCAN_SKIP = {
+    "in", "code", "paper", "data", "out", "slides", "docs", "refs", "notes", "results", "tmp",
+    "node_modules", "__pycache__",
+}
 
 SUBPROJECT_GITIGNORE = """.DS_Store
 __pycache__/
 *.pyc
 
-# Outputs and heavy data: created locally, not tracked
-results/
+# Intermediate results and finished outputs: only the manifest layer is tracked
 data/**
 !data/**/
 !data/**/.gitkeep
 !data/**/*.md
-out/
+out/**
+!out/**/
+!out/**/.gitkeep
+!out/**/*.md
 tmp/
 """
 
@@ -1250,11 +1479,7 @@ def command_project_sub(args: argparse.Namespace) -> None:
     venv_rel = "/".join([".."] * len(rel_parts)) + "/.venv"
     description = args.description or "One paragraph."
     root.mkdir(parents=True)
-    for folder in SUBPROJECT_DIRS:
-        (root / folder).mkdir()
-        print(f"created: {rel_home(root / folder)}/")
-    write_new(root / "code" / ".gitkeep", "")
-    write_new(root / "data" / ".gitkeep", "")
+    make_project_dirs(root, SUBPROJECT_DIRS)
     write_new(
         root / "subproject.yaml",
         f"schema_version: 1\nname: {name}\ntype: subproject\nparent: {parent_name}\n"
@@ -1268,6 +1493,7 @@ def command_project_sub(args: argparse.Namespace) -> None:
         f"(`{venv_rel}`); it has no `.venv` of its own. Versioned by its own "
         f"git repository, ignored by the parent's.\n",
     )
+    write_project_log(root, project_title(name, None), f"- Did: created the subproject inside `{parent_name}`.")
     # The subproject versions itself: its own repository, ignored by the
     # parent's so the parent's history stays free of it.
     if not (root / ".git").exists():
@@ -1405,13 +1631,7 @@ def command_new_project(args: argparse.Namespace) -> None:
     primary_host = hosts[0]
     root = PROJECTS / relpath
     root.mkdir(parents=True, exist_ok=True)
-    for folder in requested_project_dirs(has_code, has_paper, has_data):
-        path = root / folder
-        if path.exists():
-            print(f"exists: {rel_home(path)}/")
-        else:
-            path.mkdir()
-            print(f"created: {rel_home(path)}/")
+    make_project_dirs(root, requested_project_dirs(has_code, has_paper, has_data, has_slides))
     replacements = {
         "<ws-root>": str(SYSTEM),
         "<project-name>": name,
@@ -1467,6 +1687,7 @@ sync:
 
 - `project.yaml` - machine-readable project metadata and routing hints
 - `AGENTS.md` - project-wide instructions for agents and humans
+- `LOG.md` - what happened, newest first; read it when resuming
 - `README.md` - human-readable overview
 
 ## Next Steps
@@ -1476,6 +1697,7 @@ sync:
     write_new(root / "README.md", readme)
     copy_template("AGENTS.md", root / "AGENTS.md", replacements)
     write_claude_md(root)
+    write_project_log(root, title, "- Did: created the project.")
     copy_template("gitignore", root / ".gitignore", replacements)
     if python_enabled:
         create_python_project_files(root, name)
@@ -1572,9 +1794,10 @@ def command_project_check(_args: argparse.Namespace) -> None:
     for name in projects:
         root = PROJECTS / name
         findings: list[tuple[str, str]] = []
-        for required in ["project.yaml", "README.md", "AGENTS.md", ".gitignore"]:
+        for required in ["project.yaml", "README.md", "AGENTS.md", "LOG.md", ".gitignore"]:
             if not (root / required).exists():
-                findings.append(("problem", f"missing {required}"))
+                hint = f" (run `ws projects install project:{name}`)" if required == "LOG.md" else ""
+                findings.append(("problem", f"missing {required}{hint}"))
         claude_problem = validate_claude_md(root)
         if claude_problem:
             findings.append(("problem", claude_problem))
@@ -1582,6 +1805,9 @@ def command_project_check(_args: argparse.Namespace) -> None:
         if not has_git:
             findings.append(("problem", "no git repository (run git init)"))
         meta = parse_project_yaml(root / "project.yaml")
+        for folder in requested_project_dirs(False, False, False, meta.get("has_slides") == "true"):
+            if not (root / folder).is_dir():
+                findings.append(("note", f"missing standard folder {folder}/ (run `ws projects install project:{name}`)"))
         for problem in classification_problems(
             meta.get("fields", []), meta.get("subfields", []), taxonomy_data
         ):
@@ -1683,12 +1909,18 @@ Generated files:
   README.md     human-readable overview
   AGENTS.md     project-wide agent instructions
   CLAUDE.md     symlink to AGENTS.md for Claude Code
+  LOG.md        project log, newest entry first
   .gitignore    local ignore rules
 
-Generated folders when requested:
+Generated folders (each with a .gitkeep):
+  in/     always        inputs the work consumes
+  out/    always        finished outputs
   code/   --has-code
+  data/   --has-data    intermediate results
   paper/  --has-paper
-  data/   --has-data
+  slides/ --has-slides  deck build scripts and built decks
+
+Other top-level folders are allowed; see the Folders section of the project guide.
 
 Default setup mode:
   bare project names open the interactive setup wizard in a terminal
@@ -1802,6 +2034,10 @@ Projects are minted with `ws create project` and read with
                      theme packages from `slides.themes` in the ws
                      configuration, editable-installed into .venv (implies venv)
 
+Every run also brings the standard layout up to date: LOG.md, in/, out/,
+slides/ when has_slides, the ignore rules for out/ and built decks, and the
+LOG.md rules in AGENTS.md. It adds, never moves or deletes.
+
 Examples:
   ws projects install                (re)run everything recorded: folders,
                                      pyproject.toml, .venv, package
@@ -1831,13 +2067,6 @@ Capabilities extend the record and never unset it; removal is a hand edit.""",
     )
     add_projects_dir_arg(project_install)
     project_install.set_defaults(func=command_project_install)
-    project_views_cmd = project_sub.add_parser("views", help="derived symlink browse views over projects")
-    project_views_actions = project_views_cmd.add_subparsers(dest="views_command", required=True)
-    project_views_rebuild = project_views_actions.add_parser(
-        "rebuild", help="wipe and regenerate views/ from classifiers and organisation edges"
-    )
-    add_projects_dir_arg(project_views_rebuild)
-    project_views_rebuild.set_defaults(func=command_project_views_rebuild)
     project_sub.add_parser("taxonomy", help="show allowed project types, fields, and subfields").set_defaults(func=command_project_taxonomy)
     add_taxonomy_value_parser(project_sub, "add-type", command_add_project_type, "add an allowed project type")
     add_taxonomy_value_parser(project_sub, "add-field", command_add_project_field, "add an allowed project field")

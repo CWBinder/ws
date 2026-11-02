@@ -65,13 +65,14 @@ Month must be beneath year; subfield must be beneath field.
 
 ```bash
 ws check anatomy
-ws documents views rebuild
-ws literature views rebuild
+ws rebuild views
 ```
 
-Rebuild each domain you changed; projects, profile and resources have the same
-`views rebuild` command. Ordinary document ingestion/edits and relation changes
-also refresh relevant views. No canonical items move when the view shape changes.
+`ws rebuild views` rebuilds every domain's folders. Name one domain to rebuild
+only that one, for example `ws rebuild views documents`. Ordinary document
+ingestion/edits and relation changes also refresh relevant views. No canonical
+items move when the view shape changes. If the file has a mistake, the rebuild
+stops before deleting anything and the previous folders stay as they were.
 
 For a graph and generated Markdown notes, see [Wiki](visualization.md).
 Maintaining the view engine: [folder anatomy contract](../contracts/folder-anatomy.md).

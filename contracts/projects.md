@@ -5,4 +5,4 @@ normative project schema and scaffold rules remain in `project.md`.
 
 This namespace entry point introduces no additional schema. See the
 [detailed contract](project.md) for extension rules and
-[usage guide](../docs/project-setup.md) for workflows.
+`ws help projects` for workflows.

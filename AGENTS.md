@@ -9,8 +9,8 @@ This is the source orientation file for the workspace tooling:
 ## Using ws or contributing to it
 
 This file orients contributors working on ws itself. To operate a user's
-workspace, start with [SKILL.md](SKILL.md) and the shared
-[usage guides](docs/README.md), plus that workspace's local instructions.
+workspace, start with [SKILL.md](SKILL.md) and the manual (`ws help`), plus that
+workspace's local instructions.
 
 Before changing code, read [the contract index](contracts/README.md) and only
 those domain/shared contracts affected by the change. Contracts specify data
@@ -65,6 +65,7 @@ Assistant-level configuration (Claude Code agents, skills, memory) lives outside
 - Do not move or sync large data unless a project rule says to do so.
 - Respect Git boundaries: workspace root is not a Git repo; managed projects
   and external source folders may be separate repos.
-- Prefer `out/` for generated outputs, `tmp/` for disposable scratch, `notes/` for transient kept notes, and `docs/` for stable documentation.
+- In projects, prefer the standard folders: `in/` for inputs, `data/` for intermediate results, `out/` for finished outputs, `docs/` for stable documentation, `tmp/` for disposable scratch. Add a new top-level folder only when none fits, and record it in the project's `LOG.md`.
+- Before ending a working session on a project, add an entry at the top of its `LOG.md`.
 - Read project-local `AGENTS.md` before modifying a project.
 - Ask before destructive operations or broad reorganizations.

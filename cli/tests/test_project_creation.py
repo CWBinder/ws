@@ -68,8 +68,11 @@ class ProjectCreationTests(unittest.TestCase):
             ))
         sub = self.projects / "studies" / "corner-shuttling"
         self.assertTrue((sub / "subproject.yaml").exists())
-        for folder in ("code", "data", "results"):
+        for folder in ("in", "code", "data", "out"):
             self.assertTrue((sub / folder).is_dir())
+            self.assertTrue((sub / folder / ".gitkeep").exists())
+        self.assertFalse((sub / "results").exists())
+        self.assertIn("created the subproject inside `studies`", (sub / "LOG.md").read_text())
         self.assertFalse((sub / ".venv").exists())
         self.assertTrue((sub / ".git").is_dir())
         self.assertIn(
@@ -137,6 +140,20 @@ class ProjectCreationTests(unittest.TestCase):
         self.assertIn("depends_on references unknown project: ghost-project", out)
         self.assertIn("related_literature references unknown item: GhostKey2026", out)
         self.assertIn("missing README.md", out)
+
+    def test_check_flags_missing_log_and_notes_missing_standard_folders(self) -> None:
+        root = self.create_project("oldlayout")
+        (root / "LOG.md").unlink()
+        (root / "in" / ".gitkeep").unlink()
+        (root / "in").rmdir()
+        (root / "notes").mkdir()  # extra folders are allowed and never flagged
+
+        out, code = self.check_output()
+
+        self.assertEqual(code, 1)
+        self.assertIn("problem: missing LOG.md (run `ws projects install project:oldlayout`)", out)
+        self.assertIn("note: missing standard folder in/", out)
+        self.assertNotIn("notes", out)
 
     def make_legacy_nested_project(self, relpath: str) -> Path:
         """Hand-build a nested project: creation refuses paths, but discovery
@@ -267,6 +284,11 @@ class ProjectCreationTests(unittest.TestCase):
         self.assertEqual(project.wizard_question_set("organizatorial"), set())
         self.assertEqual(project.wizard_question_set("other"), set())
         self.assertIn("venv", project.wizard_question_set("research"))
+        self.assertEqual(
+            project.wizard_question_set("exploration"),
+            {"code", "python", "venv", "deps", "paper", "slides", "server"},
+        )
+        self.assertTrue({"paper", "slides"} <= project.wizard_question_set("research"))
         self.assertNotIn("venv", project.wizard_question_set("teaching"))
         self.assertEqual(
             project.wizard_question_set("community-extended"), set(project.FULL_QUESTION_SET)
@@ -297,11 +319,24 @@ class ProjectCreationTests(unittest.TestCase):
     def test_default_scaffold_is_minimal(self) -> None:
         root = self.create_project("minimal-project")
 
-        for filename in ["project.yaml", "README.md", "AGENTS.md", "CLAUDE.md", ".gitignore"]:
+        for filename in ["project.yaml", "README.md", "AGENTS.md", "CLAUDE.md", "LOG.md", ".gitignore"]:
             self.assertTrue((root / filename).exists(), filename)
         self.assertTrue((root / ".git").is_dir())
         optional_dirs = {path.name for path in root.iterdir() if path.is_dir() and path.name != ".git"}
-        self.assertEqual(optional_dirs, set())
+        self.assertEqual(optional_dirs, {"in", "out"})
+        for folder in optional_dirs:
+            self.assertTrue((root / folder / ".gitkeep").exists(), folder)
+
+    def test_log_starts_with_a_dated_creation_entry(self) -> None:
+        root = self.create_project("logged-project")
+        log = (root / "LOG.md").read_text(encoding="utf-8")
+
+        self.assertTrue(log.startswith("# Log — Logged Project\n"))
+        self.assertIn(f"## {project.today()} · {project.paths.HOST}\n\n- Did: created the project.", log)
+        self.assertIn("## YYYY-MM-DD · host", log)  # the format example stays a template
+        self.assertNotIn("<log-", log)
+        self.assertIn("LOG.md", (root / "AGENTS.md").read_text(encoding="utf-8"))
+        self.assertIn("`LOG.md`", (root / "README.md").read_text(encoding="utf-8"))
 
     def test_project_records_broad_fields_and_compatible_subfields(self) -> None:
         root = self.create_project(
@@ -324,13 +359,13 @@ class ProjectCreationTests(unittest.TestCase):
 
     def test_capability_flags_create_only_requested_folders(self) -> None:
         cases = [
-            ("code-project", {"has_code": True}, {"code"}),
-            ("paper-project", {"has_paper": True}, {"paper"}),
-            ("data-project", {"has_data": True}, {"data"}),
+            ("code-project", {"has_code": True}, {"in", "out", "code"}),
+            ("paper-project", {"has_paper": True}, {"in", "out", "paper"}),
+            ("data-project", {"has_data": True}, {"in", "out", "data"}),
             (
                 "combined-project",
                 {"has_code": True, "has_paper": True, "has_data": True},
-                {"code", "paper", "data"},
+                {"in", "out", "code", "paper", "data"},
             ),
         ]
 

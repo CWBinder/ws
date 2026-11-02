@@ -1,6 +1,6 @@
 # Documents contract
 
-Usage: [Filing documents](../docs/documents.md).
+Usage: `ws help documents`.
 
 Documents form a managed catalogue. `ws add document` creates one stable
 YAML record under `documents/items/`.

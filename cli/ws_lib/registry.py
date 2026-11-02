@@ -46,7 +46,7 @@ DOMAINS = {
 CATEGORIES = {
     "objects": "Work on single objects and their edges: the CRUD verbs.",
     "search": "Find things: collection queries and reference lookup.",
-    "maintenance": "Keep the derived layers coherent: index, wiki, validation.",
+    "maintenance": "Keep the derived layers coherent: rebuild and validate them.",
     "discovery": "Learn the command surface from the CLI itself.",
 }
 
@@ -68,11 +68,14 @@ GLOBAL_NAMESPACES = {
     item.name: item
     for item in (
         NamespaceSpec("init", "maintenance", "Initialise an empty workspace and remember its location.", "contracts/workspace.md"),
-        NamespaceSpec("index", "maintenance", "Maintain the derived search index.", "contracts/search.md"),
-        NamespaceSpec("wiki", "maintenance", "Build the derived Obsidian/wiki view.", "contracts/wiki.md"),
+        NamespaceSpec("rebuild", "maintenance", "Regenerate the derived layers from canonical data.", "contracts/workspace.md"),
+        NamespaceSpec("index", "maintenance", "Inspect the derived search index.", "contracts/search.md"),
+        NamespaceSpec("wiki", "maintenance", "Older spelling of `ws rebuild wiki`.", "contracts/wiki.md"),
+        NamespaceSpec("dashboard", "maintenance", "Older spelling of `ws rebuild dashboard`.", "contracts/dashboard.md"),
         NamespaceSpec("check", "maintenance", "Validate workspace state and contracts.", "contracts/check.md"),
         NamespaceSpec("id", "search", "Resolve and inspect canonical references.", "contracts/objects.md"),
-        NamespaceSpec("help", "discovery", "How to type one command.", "contracts/cli.md"),
+        NamespaceSpec("context", "objects", "Brief a session on one place: where it is, what it is for, what has happened, how to work there.", "contracts/context.md"),
+        NamespaceSpec("help", "discovery", "The manual: the overview, one kind, or one command.", "contracts/cli.md"),
         NamespaceSpec("capabilities", "discovery", "Which commands exist.", "contracts/cli.md"),
         NamespaceSpec("describe", "discovery", "What one command does and touches.", "contracts/cli.md"),
         NamespaceSpec("completions", "discovery", "Generate shell completions.", "contracts/cli.md"),
@@ -81,17 +84,49 @@ GLOBAL_NAMESPACES = {
 }
 
 
-# The graph layer: not a domain (edges are not objects and belong to no
-# kind), and not recoverable either — a hand-asserted edge exists nowhere
-# else and cannot be regenerated. Its commands (`ws relations`, `ws
-# relations edit`) do object-and-edge work, so they file under the objects
-# category while the store keeps its own layer and contract.
+# The graph layer: not a domain (an edge belongs to no domain, though the
+# universal tools address it by its `relation:<id>` REF), and not
+# recoverable either — a hand-asserted edge exists nowhere else and cannot be
+# regenerated. Its commands (`ws relate`, bare `ws relations`) do
+# object-and-edge work, so they file under the objects category while the
+# store keeps its own layer and contract.
 GRAPH = {
     item.name: item
     for item in (
         NamespaceSpec("relations", "graph", "Canonical edges between objects.", "contracts/relations.md"),
     )
 }
+
+
+# The derived layers `ws rebuild TARGET` regenerates, in the order bare
+# `ws rebuild` runs them, each with the contract that governs it.
+REBUILD_TARGETS = {
+    "views": "contracts/folder-anatomy.md",
+    "index": "contracts/search.md",
+    "wiki": "contracts/wiki.md",
+    "dashboard": "contracts/dashboard.md",
+}
+
+# Domains with `by-*` browse views, in the order `ws rebuild views` builds them.
+VIEW_DOMAINS = ("projects", "documents", "literature", "profile", "resources")
+
+# Each layer once had its own spelling. They still run, as aliases of the
+# `ws rebuild` command that replaced them.
+OLDER_REBUILD_SPELLINGS = {
+    **{
+        f"{domain} views rebuild": f"rebuild views {domain}"
+        for domain in VIEW_DOMAINS
+    },
+    "index rebuild": "rebuild index",
+    "wiki build": "rebuild wiki",
+    "dashboard build": "rebuild dashboard",
+}
+
+
+def rebuilds_derived_state(path: str) -> bool:
+    """True for every spelling of `ws rebuild`. Rebuilding reads records and
+    writes only derived layers, so it never invalidates the search index."""
+    return path.split()[:1] == ["rebuild"] or path in OLDER_REBUILD_SPELLINGS
 
 
 EFFECTS: dict[str, EffectSpec] = {
@@ -113,6 +148,7 @@ EFFECTS: dict[str, EffectSpec] = {
         writes=(
             "projects/items/<slug>/project.yaml (capability flags, runtime, project_dependencies)",
             "capability folders, pyproject.toml, and .venv/ inside the project",
+            "missing standard layout: LOG.md, in/, out/, slides/, .gitignore rules and AGENTS.md log rules",
         ),
         relations=("creates depends-on edges for newly recorded --use-project dependencies",),
         external=("pip install -e for package dependencies, the slide generator and configured slide theme packages",),
@@ -203,7 +239,7 @@ EFFECTS: dict[str, EffectSpec] = {
             "literature/items/<ItemKey>/",
             "literature/items/<ItemKey>/info.yaml field/subfield classifiers",
         ),
-        external=("Crossref/arXiv/Open Library when the identifier requires lookup",),
+        external=("Crossref or arXiv when a DOI or arXiv identifier requires lookup",),
     ),
     "literature edit": EffectSpec(
         reads=("literature/items/<ItemKey>/info.yaml", "shared field/subfield taxonomy"),
@@ -276,7 +312,7 @@ EFFECTS: dict[str, EffectSpec] = {
     "logistics organisations add": EffectSpec(writes=("logistics/organisations/<id>.yaml",)),
     "logistics events add": EffectSpec(writes=("logistics/events/<id>.yaml",)),
     "show": EffectSpec(
-        reads=("the referenced records", "relations/*.yaml for `show relations of`"),
+        reads=("the referenced records", "relations/*.yaml for the relations each one lists"),
     ),
     "list": EffectSpec(
         reads=("the named kind's records; every kind when bare",),
@@ -289,25 +325,42 @@ EFFECTS: dict[str, EffectSpec] = {
     ),
     "edit": EffectSpec(
         reads=("the referenced record",),
-        writes=("the referenced record",),
+        writes=("the referenced record, or relations/rel_<id>.yaml for a relation REF",),
     ),
     "delete": EffectSpec(
         reads=("the referenced records", "relations/*.yaml"),
         writes=(
             "removes records and every relation touching them",
-            "moves document files and resource folders to ~/.Trash",
+            "removes relations/rel_<id>.yaml for a relation REF",
+            "moves document files and the folders of resources, literature items and projects to ~/.Trash",
         ),
         destructive=True,
     ),
-    "relate": EffectSpec(writes=("relations/<id>.yaml",)),
+    "relate": EffectSpec(writes=("relations/rel_<id>.yaml",)),
     "unrelate": EffectSpec(
-        writes=("relations/<id>.yaml",), destructive=True
+        writes=("relations/rel_<id>.yaml",), destructive=True
     ),
-    "relations edit": EffectSpec(writes=("relations/<id>.yaml",)),
+    "relations edit": EffectSpec(writes=("relations/rel_<id>.yaml",)),
     "search": EffectSpec(reads=("derived index/index.sqlite",)),
-    "wiki build": EffectSpec(
+    "context": EffectSpec(
+        reads=(
+            ".context/ notes from the workspace root down to the object (whereami, instructions, purpose, log)",
+            "context/ texts shipped in the ws checkout",
+            "records and relations",
+            "a project's README.md Purpose section and root LOG.md where .context/ has none",
+        ),
+    ),
+    "rebuild index": EffectSpec(
+        reads=("all canonical domain data", "relations"),
+        writes=("index/index.sqlite",),
+    ),
+    "rebuild wiki": EffectSpec(
         reads=("all canonical domain data", "relations"),
         writes=("wiki/generated/",),
+    ),
+    "rebuild dashboard": EffectSpec(
+        reads=("all canonical domain data", "relations"),
+        writes=("dashboard.html at the workspace root",),
     ),
 }
 
@@ -315,9 +368,45 @@ EFFECTS: dict[str, EffectSpec] = {
 # home-keyed entry the same way the other hoisted spellings do.
 EFFECTS["create subproject"] = EFFECTS["projects create-subproject"]
 
+
+def _combined(effects: Iterable[EffectSpec]) -> EffectSpec:
+    """One entry for a command that runs several others in turn."""
+    effects = list(effects)
+
+    def union(field: str) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(item for effect in effects for item in getattr(effect, field)))
+
+    return EffectSpec(
+        reads=union("reads"),
+        writes=union("writes"),
+        relations=union("relations"),
+        external=union("external"),
+        destructive=any(effect.destructive for effect in effects),
+    )
+
+
+# `ws rebuild views` runs every domain's rebuild, whose older per-domain
+# spelling keeps the entry for that domain alone; the other older spellings
+# share the entry of the target they now run.
+EFFECTS["rebuild views"] = _combined(
+    EFFECTS[f"{domain} views rebuild"] for domain in VIEW_DOMAINS
+)
+EFFECTS["rebuild"] = _combined(EFFECTS[f"rebuild {target}"] for target in REBUILD_TARGETS)
+for _older, _current in OLDER_REBUILD_SPELLINGS.items():
+    EFFECTS.setdefault(_older, EFFECTS[" ".join(_current.split()[:2])])
+
 COMPATIBILITY_PATHS = {
     "create agent",
     "create subagent",
+    # Older edge spellings; `ws delete relation:<id>` and `ws edit relation:<id>`.
+    "unrelate",
+    "relations edit",
+    # Older spellings of `ws rebuild TARGET`, headings included, so neither
+    # listings nor completion offer them.
+    *(f"{domain} views" for domain in VIEW_DOMAINS),
+    "index rebuild",
+    "wiki",
+    "dashboard",
 }
 
 
@@ -364,14 +453,6 @@ KIND_PLURALS = {
     "resource": "resources",
     "profile": "profile",
     "project": "projects",
-}
-
-# The hand-curated kinds keep their limits (objects.md, Acting on objects):
-# show renders every REF, projects have no edit, and neither projects nor
-# literature can be deleted.
-REF_TOOL_EXCEPTIONS = {
-    "edit": {"project"},
-    "delete": {"project", "literature"},
 }
 
 VERB_CONTRACTS = {
@@ -444,7 +525,7 @@ STANDARD_OPTION_HELP = {
     "--priority": "task priority word",
     "--tag": "free-form tag; repeatable",
     "--keyword": "keyword; repeatable",
-    "--type": "classifier type; the kind's `taxonomy` command lists the allowed values",
+    "--type": "classifier type; where the kind has a taxonomy, `ws <domain> taxonomy` lists the allowed values",
     "--field": "broad classifier field; see the kind's `taxonomy`",
     "--subfield": "narrower classifier within the chosen field",
     "--title": "title",
@@ -479,7 +560,7 @@ STANDARD_POSITIONAL = {
         "IDENTIFIER",
         "DOI, arXiv id, or ISBN; omit with --manual to enter metadata by hand",
     ),
-    "relation_id": ("RELATION_ID", "relation id from `ws show relations of REF`"),
+    "relation_id": ("RELATION_ID", "relation:<id>, as `ws show REF` lists it"),
     "resource": ("REF", "canonical resource:<key> reference"),
     "roots": ("ROOT", "folders to sync into; defaults to the configured roots"),
 }
@@ -779,6 +860,9 @@ def cli_findings(root: argparse.ArgumentParser) -> list[dict]:
             and fallback.writes
         ):
             problem(path, f"writing command relies on the generic '{words[0]}' effects entry")
+    from . import manual
+
+    findings.extend(manual.findings(root))
     return findings
 
 
@@ -895,6 +979,8 @@ def command_record(root: argparse.ArgumentParser, path: list[str]) -> dict:
         or GRAPH.get(canonical[0])
     )
     contract = namespace.contract if namespace else VERB_CONTRACTS.get(path[0], "")
+    if canonical[0] == "rebuild" and len(canonical) > 1:
+        contract = REBUILD_TARGETS.get(canonical[1], contract)
     # A leaf answers for itself; only a namespace root may borrow the
     # namespace's purpose. Flags are help's job, not describe's.
     purpose = parser.description or ""
@@ -904,6 +990,8 @@ def command_record(root: argparse.ArgumentParser, path: list[str]) -> dict:
         category = command_category(list(path))
     except KeyError:
         category = ""
+    from . import manual
+
     return {
         "command": f"ws {' '.join(path)}",
         "kind": namespace.kind if namespace else "command",
@@ -912,31 +1000,9 @@ def command_record(root: argparse.ArgumentParser, path: list[str]) -> dict:
         "subcommands": children,
         "effects": asdict(effect),
         "contract": contract,
-        "guide": command_guide(canonical),
+        "guide": manual.guide_for(list(path)),
+        "manual": f"ws help {' '.join(path)}",
     }
-
-
-def command_guide(canonical: list[str]) -> str:
-    """Route command discovery to shared usage docs, relative to SYSTEM."""
-    if canonical[:2] == ["projects", "install"]:
-        return "docs/project-install.md"
-    if "views" in canonical:
-        return "docs/browsing.md"
-    return {
-        "init": "GETTING-STARTED.md",
-        "projects": "docs/project-setup.md",
-        "literature": "docs/literature.md",
-        "profile": "docs/profile.md",
-        "documents": "docs/documents.md",
-        "resources": "docs/resources.md",
-        "relations": "docs/relationships.md",
-        "relate": "docs/relationships.md",
-        "unrelate": "docs/relationships.md",
-        "show": "docs/relationships.md",
-        "search": "docs/relationships.md",
-        "wiki": "docs/visualization.md",
-        "completions": "docs/ws-completions.md",
-    }.get(canonical[0], "docs/reference/commands.md")
 
 
 def _first_sentence(text: str) -> str:
@@ -981,6 +1047,7 @@ def command_describe(args: argparse.Namespace) -> None:
         print(record["purpose"])
     from .paths import SYSTEM
 
+    print(f"manual: {record['manual']}")
     print(f"guide: {SYSTEM / record['guide']}")
     if record["contract"]:
         print(f"contract: {record['contract']}")
@@ -1026,16 +1093,12 @@ def kind_capability_records(
             tool(["add", name], spelling)
             break
     tool(["show"], f"ws show {ref}")
-    if kind not in REF_TOOL_EXCEPTIONS["edit"]:
-        tool(["edit"], f"ws edit {ref}")
-    if kind not in REF_TOOL_EXCEPTIONS["delete"]:
-        tool(["delete"], f"ws delete {ref}")
+    tool(["edit"], f"ws edit {ref}")
+    tool(["delete"], f"ws delete {ref}")
     if resolve_parser(root, ("list", plural)):
         tool(["list", plural], f"ws list {plural}")
     tool(["search"], f"ws search {plural} <query>")
-    tool(["show"], f"ws show relations of {ref}")
     tool(["relate"], f"ws relate {ref} to <ref> as <words>")
-    tool(["unrelate"], f"ws unrelate {ref} to <ref> as <words>")
 
     home_parser = resolve_parser(root, home)
     if home_parser is not None:
@@ -1058,6 +1121,24 @@ def _canonical_capability_paths(root: argparse.ArgumentParser) -> list[list[str]
     return paths
 
 
+def relation_capability_records(root: argparse.ArgumentParser) -> list[dict]:
+    """Everything one can do with edges: an edge is made with relate, listed
+    under its objects by show, and addressed by its own REF after that."""
+    records = []
+    for path, spelling in (
+        (["relate"], "ws relate <ref> to <ref> as <words>"),
+        (["show"], "ws show <ref>"),
+        (["show"], "ws show relation:<id>"),
+        (["edit"], "ws edit relation:<id>"),
+        (["delete"], "ws delete relation:<id>"),
+        (["relations"], "ws relations"),
+    ):
+        record = command_record(root, path)
+        record["command"] = spelling
+        records.append(record)
+    return records
+
+
 def command_capabilities(args: argparse.Namespace) -> None:
     if args.path:
         if len(args.path) == 1:
@@ -1076,6 +1157,8 @@ def command_capabilities(args: argparse.Namespace) -> None:
                     print(record["command"])
                 return
             records = kind_capability_records(args.root_parser, word)
+            if records is None and word in ("relation", "relations"):
+                records = relation_capability_records(args.root_parser)
             if records is not None:
                 if args.json:
                     print(json.dumps(records, indent=2))
@@ -1131,9 +1214,9 @@ def command_capabilities(args: argparse.Namespace) -> None:
 # read as places rather than actions, so the map points at them from "what
 # the workspace holds" instead. `ws capabilities` remains the total view.
 OVERVIEW_CATEGORY_COMMANDS = {
-    "objects": ("create", "add", "show", "edit", "delete", "relate", "unrelate"),
+    "objects": ("create", "add", "show", "edit", "delete", "relate", "context"),
     "search": ("list", "search", "id"),
-    "maintenance": ("init", "index", "wiki", "check"),
+    "maintenance": ("init", "rebuild", "check"),
     "discovery": ("help", "capabilities", "describe", "completions"),
 }
 
@@ -1146,7 +1229,7 @@ OVERVIEW_GRAMMAR = (
 
 OVERVIEW_DISCOVERY = (
     ("ws capabilities [KIND|CATEGORY]", "which commands exist"),
-    ("ws help COMMAND", "how to type it"),
+    ("ws help [KIND|COMMAND]", "the manual: what it is, how to use it"),
     ("ws describe COMMAND", "what it does and touches"),
     ("ws check [AREA]", "validate the workspace"),
 )
@@ -1168,7 +1251,7 @@ def _wrapped_names(names: Iterable[str], width: int) -> list[str]:
     return lines
 
 
-def print_overview() -> None:
+def print_overview(manual_pointer: bool = True) -> None:
     """The one overview text, shared by bare `ws`, `ws --help`, and bare
     `ws help` (contracts/cli.md, Discovery).
 
@@ -1199,17 +1282,24 @@ def print_overview() -> None:
     from .paths import SYSTEM
 
     print(f"\nGetting started: {SYSTEM / 'GETTING-STARTED.md'}")
-    print(f"Usage guides: {SYSTEM / 'docs/README.md'}")
+    if manual_pointer:
+        print("The full overview and every manual: ws help")
 
 
 def command_help(args: argparse.Namespace) -> None:
-    if not args.path:
-        print_overview()
-        return
-    parser = resolve_parser(args.root_parser, args.path)
-    if parser is None:
+    """`ws help [WORDS]`: the manual page (see manual.py). Short help, the
+    flags alone, stays with `ws <command> --help`."""
+    from . import manual
+
+    text = manual.render(args.root_parser, tuple(args.path))
+    if text is None:
         args.root_parser.error(f"unknown command path: {' '.join(args.path)}")
-    parser.print_help()
+    if sys.stdout.isatty():
+        import pydoc
+
+        pydoc.pager(text + "\n")
+    else:
+        print(text)
 
 
 def add_parsers(sub: argparse._SubParsersAction, root: argparse.ArgumentParser) -> None:
@@ -1221,8 +1311,18 @@ def add_parsers(sub: argparse._SubParsersAction, root: argparse.ArgumentParser) 
     )
     domains.set_defaults(func=command_domains)
 
-    help_parser = sub.add_parser("help", help="show help for a command path")
-    help_parser.add_argument("path", nargs="*")
+    help_parser = sub.add_parser(
+        "help",
+        help="the manual: the overview, one kind, or one command",
+        description="Print the manual. Bare, the overview of the workspace; "
+        "with a kind word (`ws help projects`), what that kind is and every "
+        "command for it; with a command (`ws help create project`), how to "
+        "use it in full, followed by its flags.",
+    )
+    help_parser.add_argument(
+        "path", nargs="*", metavar="WORDS",
+        help="a kind, a command path, or a topic; omit for the overview",
+    )
     help_parser.set_defaults(func=command_help, root_parser=root)
 
     capabilities = sub.add_parser(

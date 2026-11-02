@@ -69,7 +69,7 @@ Active installed system files remain outside the managed content root:
 ## Future directions
 
 - server sync — planned (two-channel git + rsync; see `contracts/project.md` and `docs/projects-wiki-plan.md`)
-- Obsidian project/workspace wiki — in place (`ws wiki build`; see `docs/visualization.md`)
+- Obsidian project/workspace wiki — in place (`ws rebuild wiki`; see `docs/visualization.md`)
 - richer literature tools — v1 in place (`ws literature`)
 - career / CV system — in place (`ws profile`; see `contracts/career.md`)
 - phone/app overview — future

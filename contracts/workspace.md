@@ -32,6 +32,8 @@ wiki/generated/
 
 Derived `by-*` browse trees appear beside each domain's `items/` store when
 views are first rebuilt; they are disposable and not part of the scaffold.
+`ws rebuild dashboard` writes one derived file at the root, `dashboard.html`
+([dashboard contract](dashboard.md)); it is the only generated file there.
 Their shapes are declared in the canonical root file
 `~/workspace/folder-anatomy.yaml` (see `folder-anatomy.md`).
 
@@ -59,6 +61,24 @@ is imported, no account is authenticated, and no Git repository is created at th
 workspace root. A full check runs at the end; pre-existing inconsistencies are
 reported rather than silently repaired.
 
+## Derived layers
+
+Four layers are derived from the canonical stores and the relations: each
+domain's `by-*` browse trees ([folder anatomy](folder-anatomy.md)), the search
+index ([search](search.md)), `wiki/generated/` ([wiki](wiki.md)) and
+`dashboard.html` ([dashboard](dashboard.md)). `ws rebuild` regenerates them in
+that order; `ws rebuild TARGET` regenerates one, and `ws rebuild views DOMAIN`
+one domain's trees.
+
+- Rebuilding reads records and relations and writes only the derived layer.
+  It never changes a canonical record and never invalidates the search index.
+- A browse-settings error is reported before any tree is wiped, so the
+  previous trees stand. Bare `ws rebuild` still regenerates the other layers,
+  which do not read the browse settings, and exits non-zero.
+- The earlier per-layer spellings (`ws <domain> views rebuild`,
+  `ws index rebuild`, `ws wiki build`, `ws dashboard build`) remain aliases
+  of the same command. They print the current spelling on stderr.
+
 The remaining services are stateless inside the workspace:
 
 - `check` validates existing state
@@ -83,10 +103,12 @@ Shared root agent orientation lives in:
 Use these meanings consistently:
 
 ```text
-tmp/      disposable scratch
-notes/    transient but kept
-out/      generated/regenerable outputs
+in/       inputs the work consumes
+data/     intermediate results
+out/      finished outputs
 docs/     stable documentation
+tmp/      disposable scratch
+LOG.md    what happened, newest first
 ```
 
 ## Path Portability

@@ -7,20 +7,29 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 
-# Generated outputs and scratch
-out/
+# Scratch
 tmp/
 
 # Agent sessions (matched at any depth)
 .codex/
 .claude/
 
-# Heavy data: ignore contents, keep only the lightweight manifest layer
+# Intermediate results and finished outputs: ignore contents, keep only the
+# lightweight manifest layer (Markdown descriptions and .gitkeep)
 data/**
 !data/**/
 !data/README.md
 !data/**/*.md
 !data/**/.gitkeep
+out/**
+!out/**/
+!out/**/*.md
+!out/**/.gitkeep
+
+# Built slide decks (the build scripts in slides/ are tracked)
+slides/**/*.pptx
+
+# Heavy inputs: list each one here and under sync.data in project.yaml
 
 # LaTeX build artifacts
 *.aux

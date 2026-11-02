@@ -1,6 +1,6 @@
 # Profile and CV Contract
 
-Usage: [Profile records and CVs](../docs/profile.md).
+Usage: `ws help profile`.
 This contract governs profile storage, generation and extension boundaries.
 
 `~/workspace/profile/` owns canonical personal and career material. The domain

@@ -24,7 +24,7 @@ Contents can have any useful folder structure.
 ws search resources workshop
 ws show resource:workshop-materials
 ws relate resource:workshop-materials to project:<key> as supports
-ws resources views rebuild
+ws rebuild views resources
 ```
 
 Relationships attach to the bundle. Its child files have no individual REFs.

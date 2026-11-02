@@ -17,6 +17,7 @@ from ws_lib import (
     anatomy,
     career,
     catalog,
+    context,
     document_taxonomy,
     indexing,
     literature,
@@ -24,10 +25,10 @@ from ws_lib import (
     paths,
     profile_taxonomy,
     project,
+    rebuild,
     resources,
     registry,
     relations,
-    wiki,
 )
 
 
@@ -39,6 +40,7 @@ CONTRACTS = paths.CONTRACTS
 TOP_LEVEL_COMMANDS = [
     "--help",
     "init",
+    "rebuild",
     "check",
     "projects",
     "tasks",
@@ -50,6 +52,7 @@ TOP_LEVEL_COMMANDS = [
     "relate",
     "unrelate",
     "show",
+    "context",
     "edit",
     "delete",
     "list",
@@ -60,21 +63,19 @@ TOP_LEVEL_COMMANDS = [
     "index",
     "search",
     "completions",
-    "wiki",
     "domains",
     "help",
     "capabilities",
     "describe",
 ]
 CREATE_COMMANDS = ["project", "subproject", "task", "resource", "profile", "agent", "subagent"]
-PROJECT_COMMANDS = ["install", "taxonomy", "add-type", "add-field", "add-subfield", "check", "views"]
+PROJECT_COMMANDS = ["install", "taxonomy", "add-type", "add-field", "add-subfield", "check"]
 LITERATURE_COMMANDS = [
     "init",
     "search-arxiv",
     "taxonomy",
     "add-field",
     "add-subfield",
-    "views",
     "enrich",
     "download-source",
     "download-pdf",
@@ -93,13 +94,13 @@ LITERATURE_ITEM_COMMANDS = [
     "cited-by",
 ]
 CAREER_COMMANDS = [
-    "init", "taxonomy", "add-type", "views", "make-cv",
+    "init", "taxonomy", "add-type", "make-cv",
 ]
 OBJECT_COMMANDS = ["ensure", "merge"]
 TASK_COMMANDS = ["ensure"]
-DOCUMENT_COMMANDS = ["taxonomy", "types", "views"]
+DOCUMENT_COMMANDS = ["taxonomy", "types"]
 RELATIONS_COMMANDS = ["edit"]
-INDEX_COMMANDS = ["rebuild", "stat"]
+INDEX_COMMANDS = ["stat"]
 ID_COMMANDS = ["resolve", "show"]
 COMPLETION_SHELLS = ["bash", "zsh"]
 
@@ -132,7 +133,9 @@ def required_dirs() -> list[Path]:
     return [
         *workspace_scaffold_dirs(),
         SYSTEM / "docs",
+        SYSTEM / "help",
         SYSTEM / "templates",
+        SYSTEM / "context",
         CLI,
     ]
 
@@ -154,6 +157,7 @@ def workspace_findings() -> list[dict]:
         CONTRACTS / "career.md",
         CONTRACTS / "relations.md",
         CONTRACTS / "cli.md",
+        CONTRACTS / "context.md",
         CONTRACTS / "tasks.md",
         CONTRACTS / "documents.md",
         CONTRACTS / "resources.md",
@@ -163,6 +167,7 @@ def workspace_findings() -> list[dict]:
         CONTRACTS / "search.md",
         CONTRACTS / "check.md",
         CONTRACTS / "wiki.md",
+        CONTRACTS / "dashboard.md",
         CONTRACTS / "folder-anatomy.md",
         project.PROJECT_TAXONOMY,
     ]:
@@ -314,6 +319,16 @@ def command_complete(args: argparse.Namespace) -> None:
 
 def command_complete_path(args: argparse.Namespace) -> None:
     path = [word for word in args.path if not word.startswith("-")]
+    if path[:1] == ["help"]:
+        # `ws help <TAB>` offers every page's first word; deeper words
+        # follow the command tree like the commands themselves.
+        if len(path) == 1:
+            from . import manual
+
+            for word in manual.first_words(args.root_parser):
+                print(word)
+            return
+        path = path[1:]
     parser = registry.resolve_parser(args.root_parser, path)
     if parser is None:
         return
@@ -659,7 +674,7 @@ def build_parser() -> argparse.ArgumentParser:
         "anatomy, index, cli); bare `ws check` runs everything",
     )
     check.add_argument("--stale-after", type=int, default=180,
-                       help="days before a derived view counts as stale")
+                       help="days after which a person's contact details count as stale")
     check.add_argument("--json", action="store_true")
     check.set_defaults(func=command_check)
 
@@ -676,6 +691,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Universal verbs: REF verbs read the kind from the REF; list, search,
     # create, and add take it as their first word.
     catalog.add_show_parser(sub)
+    context.add_parser(sub)
     catalog.add_edit_parser(sub)
     catalog.add_delete_parser(sub)
     catalog.add_list_parser(sub)
@@ -687,7 +703,9 @@ def build_parser() -> argparse.ArgumentParser:
     # Global namespaces: maintenance commands.
     relations.add_parsers(sub)
     indexing.add_parsers(sub)
-    wiki.add_parser(sub)
+    rebuild.add_parser(sub)
+    # Each derived layer's older spelling, under its old home.
+    rebuild.add_older_spellings(sub)
 
     # Stable low-level identity and graph utilities.
     catalog.add_id_parser(sub)
@@ -719,6 +737,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     argv = catalog.expand_add_target(sys.argv[1:])
+    relations.point_edge_reads_at_show(argv)
     registry.enforce_flags_last(parser, argv)
     args = parser.parse_args(argv)
     if args.help or not args.command:
@@ -737,7 +756,9 @@ def main() -> None:
     if (
         effect
         and effect.writes
-        and canonical_path not in {"index rebuild", "init"}
+        # Derived renderings read records; they never change the search corpus.
+        and canonical_path != "init"
+        and not registry.rebuilds_derived_state(canonical_path)
         # Agents are tooling configuration, not objects: their writes never
         # change the search corpus, so they do not invalidate the index.
         and not canonical_path.startswith("agents ")

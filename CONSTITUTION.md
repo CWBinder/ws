@@ -63,34 +63,31 @@ project.yaml
 README.md
 AGENTS.md
 CLAUDE.md
+LOG.md
 .gitignore
-```
-
-Allowed optional project folders:
-
-```text
-code/
-paper/
-data/
-docs/
-refs/
-notes/
+in/
 out/
-tmp/
 ```
 
-No other top-level project folders without explicit user instruction.
+and, with their capabilities, `code/`, `data/`, `paper/` and `slides/`.
+`docs/`, `refs/` and `tmp/` are conventional folders, created when first
+needed. These standard folders are the minimum, not a limit: other top-level
+folders are allowed.
 
 ## Side-effect tiers
 
 - `tmp/` — disposable scratch
-- `notes/` — transient but kept
-- `out/` — generated/regenerable outputs
-- `code/`, `paper/`, `data/`, `docs/`, `refs/` — canonical project material
+- `data/` — intermediate results
+- `out/` — finished outputs
+- `in/`, `code/`, `paper/`, `slides/`, `docs/`, `refs/`, `LOG.md` — canonical
+  project material
 
 ## Agents
 
-Agents write narrowly and do not invent folder structures.
+Agents write narrowly. They put material in the standard folder that fits,
+add a new top-level folder only when none does, and record it with the reason
+in the project's `LOG.md`. Before ending a working session on a project they
+add a `LOG.md` entry.
 
 ## AI attribution
 

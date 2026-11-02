@@ -1805,7 +1805,7 @@ def command_literature_edit(args: argparse.Namespace) -> None:
     print(f"updated: {rel_home(root / 'info.yaml')}")
     print("fields: " + (", ".join(fields) if fields else "none"))
     print("subfields: " + (", ".join(subfields) if subfields else "none"))
-    print("views: run `ws literature views rebuild` to refresh by-* folders")
+    print("views: run `ws rebuild views literature` to refresh by-* folders")
 
 
 def command_literature_citations(args: argparse.Namespace) -> None:
@@ -1929,18 +1929,6 @@ def command_literature_taxonomy(_args: argparse.Namespace) -> None:
         print(f"  {field}: {', '.join(values) if values else '-'}")
 
 
-def command_literature_views_rebuild(args: argparse.Namespace) -> None:
-    from ws_lib import anatomy
-
-    counts = anatomy.rebuild_literature()
-    if getattr(args, "json", False):
-        print(json.dumps({"root": str(LITERATURE), "links": counts}))
-        return
-    print(f"rebuilt: {rel_home(LITERATURE)}/by-*")
-    for name in sorted(counts):
-        print(f"  {name}: {counts[name]} links")
-
-
 def _shared_vocabulary_hints() -> tuple[str, str]:
     """Field and subfield vocabularies for help strings; empty when unreadable."""
     try:
@@ -1999,7 +1987,7 @@ def attach_add_parser(sub: argparse._SubParsersAction, name: str = "add") -> arg
     lit_add.add_argument("--full", action="store_true", help="shorthand for --prefer-published --pdf --source")
     lit_add.add_argument("--prefer-published", action="store_true", help="use the published DOI as the main citation, keeping the arXiv one alongside")
     lit_add.add_argument("--pdf", action="store_true", help="also download the PDF")
-    lit_add.add_argument("--source", action="store_true", dest="source")
+    lit_add.add_argument("--source", action="store_true", dest="source", help="also download the arXiv TeX source package")
     lit_add.add_argument("--force", action="store_true")
     lit_add.add_argument("--no-extract", action="store_true", help="download the source package without extracting it")
     lit_add.add_argument(
@@ -2074,7 +2062,7 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
         epilog=f"""Library structure:
   {rel_home(LITERATURE_ITEMS)}/<ItemKey>/citation.bib
   {rel_home(LITERATURE)}/by-author/<author>/<ItemKey>
-  {rel_home(LITERATURE)}/by-field/<field>/<subfield-or-unclassified>/<ItemKey>
+  {rel_home(LITERATURE)}/by-field/<field>/by-subfield/<subfield>/<ItemKey>
   {rel_home(LITERATURE)}/by-year/<year>/<ItemKey>
 
 Principles:
@@ -2193,18 +2181,6 @@ Modes:
     lit_add_subfield.add_argument("field")
     lit_add_subfield.add_argument("value")
     lit_add_subfield.set_defaults(func=command_literature_add_subfield)
-
-    lit_views = lit_sub.add_parser(
-        "views",
-        help="manage derived by-author, by-field, and by-year views",
-    )
-    views_actions = lit_views.add_subparsers(
-        dest="literature_views_command",
-        required=True,
-    )
-    views_rebuild = views_actions.add_parser("rebuild", help="rebuild the derived by-* browse views from current data")
-    views_rebuild.add_argument("--json", action="store_true")
-    views_rebuild.set_defaults(func=command_literature_views_rebuild)
 
     lit_citations = lit_sub.add_parser(
         "citations",

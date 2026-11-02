@@ -1,6 +1,6 @@
 # Resources contract
 
-Usage: [Bundling supporting files](../docs/resources.md).
+Usage: `ws help resources`.
 
 A resource is a first-class, folder-backed bundle of arbitrary supporting
 files. The folder is the object; its children are ordinary files and folders,

@@ -39,23 +39,17 @@ project.yaml
 README.md
 AGENTS.md
 CLAUDE.md
+LOG.md
 .gitignore
 ```
 
-Allowed optional folders:
-
-```text
-code/
-paper/
-data/
-docs/
-refs/
-notes/
-out/
-tmp/
-```
-
-`ws create project` creates `code/`, `paper/`, and `data/` only with their corresponding capability flags. `--python` creates Python project metadata and implies `--has-code`; `--venv` creates `.venv` and implies `--python`. Other folders are created when first needed. Git does not preserve empty directories in a clone, and `out/` and `tmp/` are intentionally ignored.
+Standard folders: `in/` (inputs) and `out/` (finished outputs) always;
+`code/`, `data/` (intermediate results), `paper/` and `slides/` with their
+capability flags; `docs/`, `refs/` and `tmp/` when first needed. Each folder
+ws creates holds a `.gitkeep`. `--python` creates Python project metadata and
+implies `--has-code`; `--venv` creates `.venv` and implies `--python`. Other
+top-level folders are allowed; agents add one only when no standard folder
+fits and record it in `LOG.md`. See [Folders](project-setup.md#folders).
 
 Follow [Project setup](project-setup.md) for creation, [Installing capabilities](project-install.md)
 for environments and subprojects, and [Configuration](reference/configuration.md)

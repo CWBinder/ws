@@ -99,14 +99,51 @@ class CatalogListTests(unittest.TestCase):
 
                 rows = json.loads(self._run(argv + ["--json"]))
 
-                self.assertEqual(
-                    rows, [{"ref": f"{kind}:{catalog.key_slug(name)}", "kind": kind, "name": name, "status": ""}]
-                )
+                expected = {"ref": f"{kind}:{catalog.key_slug(name)}", "kind": kind, "name": name, "status": ""}
+                if kind == "task":
+                    expected["due"] = ""
+                self.assertEqual(rows, [expected])
 
     def test_empty_store_reports_none(self) -> None:
         for kind, (argv, _, _) in LISTINGS.items():
             with self.subTest(kind=kind):
                 self.assertEqual(self._run(argv).strip(), "none")
+
+    def _task(self, name: str, **fields) -> str:
+        key = catalog.key_slug(name)
+        records.atomic_write(
+            self.stores["task"] / f"{key}.yaml",
+            {"schema_version": 1, "id": f"task_{key}", "key": key, "kind": "task",
+             "name": name, "aliases": [], **fields},
+        )
+        return f"task:{key}"
+
+    def _task_refs(self, argv: list[str]) -> set[str]:
+        return {row["ref"] for row in json.loads(self._run(["list", "tasks", *argv, "--json"]))}
+
+    def test_open_tasks_leave_out_closed_ones(self) -> None:
+        pay = self._task("Pay the formal", status="open", due="2026-10-25")
+        later = self._task("Look into GESDA")
+        waiting = self._task("Hear back from Zhu", status="waiting")
+        self._task("Book the train", status="done")
+        self._task("Old plan", status="Dropped")
+
+        self.assertEqual(self._task_refs(["--open"]), {pay, later, waiting})
+
+    def test_status_matches_one_word_and_open_includes_unset(self) -> None:
+        pay = self._task("Pay the formal", status="open")
+        later = self._task("Look into GESDA")
+        done = self._task("Book the train", status="Done")
+
+        self.assertEqual(self._task_refs(["--status", "done"]), {done})
+        self.assertEqual(self._task_refs(["--status", "open"]), {pay, later})
+        self.assertEqual(self._task_refs(["--status", "waiting"]), set())
+
+    def test_task_rows_carry_the_due_date(self) -> None:
+        pay = self._task("Pay the formal", status="open", due="2026-10-25")
+
+        self.assertEqual(self._run(["list", "tasks", "--open"]).strip(), f"{pay}\tPay the formal\topen\t2026-10-25")
+        self.assertEqual(json.loads(self._run(["list", "tasks", "--json"]))[0]["due"], "2026-10-25")
 
 
 if __name__ == "__main__":

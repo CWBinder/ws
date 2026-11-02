@@ -25,6 +25,11 @@ ws projects install project:<key>
 ```
 
 This is useful after a clone, recreating `.venv`, or editing `project.yaml`.
+Every run also brings the standard layout up to date, which is how a project
+created before `LOG.md`, `in/` and `out/` became standard catches up: it adds
+`LOG.md`, the missing standard folders, the ignore rules for `out/` and built
+decks, and the `LOG.md` rules in `AGENTS.md`. It never moves or deletes
+anything.
 Inside a project you may omit its REF. If its name is also a capability word,
 use the full REF to disambiguate. Install adds and materializes capabilities;
 it does not remove previously recorded ones.
@@ -63,7 +68,7 @@ with a warning. Review a dependency's recipe before running its setup.
 ## Share an environment with a subproject
 
 A subproject sits inside a parent project and uses the parent's `.venv`.
-It has its own Git repository, `subproject.yaml`, and code/data/results
+It has its own Git repository, `subproject.yaml`, `LOG.md`, and in/code/data/out
 folders. The parent ignores the nested repository.
 
 From inside the parent project:

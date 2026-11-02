@@ -64,7 +64,7 @@ Use the actual reference it returns in the next commands:
 ws relate document:example to project:first-project as belongs-to
 ws search documents example
 ws show document:example
-ws show relations of project:first-project
+ws show project:first-project
 ws check
 ```
 
@@ -88,11 +88,10 @@ replace existing settings. Read command help when an option is unclear.
 ## Learning and maintenance
 
 - `ws capabilities documents`: available document operations.
-- `ws help add document`: exact arguments and options.
-- `ws describe add document`: usage guide and what it reads and changes.
-- [Concepts](docs/concepts/workspace-concepts.html): a visual explanation.
-- [Configuration](docs/reference/configuration.md): saved root and overrides.
-- [Documentation index](docs/README.md): optional guides for later.
+- `ws help`: the overview of the workspace, and the list of manuals.
+- `ws help add document`: how to add a document, with its options.
+- `ws describe add document`: what it reads and changes.
+- `ws help configuration`: the saved root and its overrides.
 
 To update, run `git pull --ff-only` in the code checkout, then `python3 install.py`
 and `ws check`. Rerun the installer after relocating the checkout; it regenerates

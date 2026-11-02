@@ -49,6 +49,14 @@ SPECS = {
     "profile": {"prefix": "profile", "dir": paths.PROFILE_ITEMS, "plural": "profile"},
 }
 
+# Task statuses that no longer ask for anything; absent status means open.
+CLOSED_TASKS = {"done", "dropped", "cancelled", "canceled", "closed", "complete", "completed", "archived"}
+
+
+def task_status(data: dict | None) -> str:
+    """A task's status word, lower-cased; an absent status reads as open."""
+    return str((data or {}).get("status", "") or "").strip().lower() or "open"
+
 
 def fail(message: str, code: int = 1) -> None:
     print(f"error: {message}", file=sys.stderr)
@@ -807,11 +815,24 @@ def command_list(args: argparse.Namespace) -> None:
             objects = [obj for obj in objects if str((obj.data or {}).get("start", ""))[:10] >= args.date_from]
         if getattr(args, "date_to", None):
             objects = [obj for obj in objects if str((obj.data or {}).get("start", ""))[:10] <= args.date_to]
-    rows = [
-        {"ref": obj.ref, "kind": obj.type, "name": obj.title, "status": (obj.data or {}).get("status", "")}
-        for obj in objects[: args.limit]
+    if args.object_type == "task":
+        if getattr(args, "status", None):
+            wanted = args.status.strip().lower()
+            objects = [obj for obj in objects if task_status(obj.data) == wanted]
+        if getattr(args, "open", False):
+            objects = [obj for obj in objects if task_status(obj.data) not in CLOSED_TASKS]
+    rows = []
+    for obj in objects[: args.limit]:
+        data = obj.data or {}
+        row = {"ref": obj.ref, "kind": obj.type, "name": obj.title, "status": data.get("status", "")}
+        if obj.type == "task":
+            row["due"] = str(data.get("due", "") or "")
+        rows.append(row)
+    lines = [
+        "\t".join([row["ref"], row["name"], str(row["status"])] + ([row["due"]] if "due" in row else []))
+        for row in rows
     ]
-    _json_or_lines(rows, args.json, [f"{row['ref']}\t{row['name']}\t{row['status']}" for row in rows] or ["none"])
+    _json_or_lines(rows, args.json, lines or ["none"])
 
 
 def _show_data(value: str, type_name: str | None) -> dict:
@@ -988,19 +1009,6 @@ def command_document_register(args: argparse.Namespace) -> None:
     )
 
 
-def command_document_views_rebuild(args: argparse.Namespace) -> None:
-    result = anatomy.rebuild_documents()
-    _json_or_lines(
-        result,
-        args.json,
-        [
-            f"documents: {result['documents']}",
-            f"links: {result['links']}",
-            f"missing files: {result['missing']}",
-        ],
-    )
-
-
 def command_id_resolve(args: argparse.Namespace) -> None:
     ref = resolve(args.query, args.type)
     value = {"ref": ref.ref, "kind": ref.type, "name": ref.title}
@@ -1118,6 +1126,12 @@ def _list_arguments(listing: argparse.ArgumentParser, type_name: str) -> None:
     elif type_name == "document":
         listing.add_argument("--type", dest="document_type", help="only this document type")
         listing.add_argument("--untyped", action="store_true", help="only documents without a type")
+    elif type_name == "task":
+        listing.add_argument("--status", help="only tasks with this status; a task without one counts as open")
+        listing.add_argument(
+            "--open", action="store_true",
+            help=f"only tasks still open, i.e. not {', '.join(sorted(CLOSED_TASKS))}",
+        )
     listing.add_argument("--limit", type=int, default=100, help="show at most this many rows (default 100)")
     listing.add_argument("--json", action="store_true", help="print rows as JSON")
 
@@ -1209,6 +1223,35 @@ def _rebuild_views_after_delete(kind: str) -> None:
         anatomy.rebuild_resources()
     elif kind == "profile":
         anatomy.rebuild_profile()
+    elif kind == "literature":
+        anatomy.rebuild_literature()
+    elif kind == "project":
+        anatomy.rebuild_projects()
+
+
+# Kinds whose record lives inside its own folder: the folder is the unit that
+# goes to the Trash, record included.
+FOLDER_KINDS = {"resource", "literature", "project"}
+
+
+def _delete_refusals(kind: str, ref: ObjectRef) -> list[str]:
+    """What the Trash cannot undo: other records that would quietly break."""
+    from ws_lib import relations
+
+    problems = []
+    if kind == "literature":
+        for edge in relations.edges_of(ref.id, "represents"):
+            if edge["direction"] == "in" and edge["other"].startswith("profile:"):
+                problems.append(
+                    f"{ref.ref} supplies the citation of the CV entry {edge['other']}; "
+                    f"to delete it anyway, first `ws delete {edge['ref']}`"
+                )
+    elif kind == "project":
+        for other in project.dependents(ref):
+            problems.append(f"{other} depends on {ref.ref}; remove that dependency first")
+        for sub in project.subproject_names(ref.path.parent):
+            problems.append(f"{ref.ref} holds the subproject project:{ref.key}/{sub}; delete that first")
+    return problems
 
 
 TRASH = Path.home() / ".Trash"
@@ -1234,15 +1277,20 @@ def _trash(path: Path) -> str:
 def command_delete(args: argparse.Namespace) -> None:
     """Delete records of any stored kind; their relations go with them.
 
-    Deletion means deletion: a document's managed file and a resource's
-    folder go to the Trash (recoverable), the record and its edges are
-    removed. Projects and literature have no delete -- lifecycle status and
-    manual curation govern those.
+    Deletion means deletion, and safety comes from recoverability: a
+    document's managed file and the folder of a resource, literature item or
+    project go to the Trash, the record and its edges are removed. What the
+    Trash cannot undo is refused up front -- a project another project
+    depends on or that holds subprojects, a paper that supplies a CV entry --
+    and git work that exists only in a project folder is named first.
     """
     from ws_lib import relations
 
     kind = args.object_type
     refs = [resolve(value, kind) for value in args.objects]
+    refusals = [problem for ref in refs for problem in _delete_refusals(kind, ref)]
+    if refusals:
+        fail("nothing deleted:\n  " + "\n  ".join(refusals))
     deleted = False
     for ref in refs:
         data = ref.data or {}
@@ -1253,7 +1301,10 @@ def command_delete(args: argparse.Namespace) -> None:
                 candidate = paths.DOCUMENTS / stored
                 if candidate.exists():
                     managed_file = candidate
-        folder = ref.path.parent if kind == "resource" and ref.path is not None else None
+        folder = ref.path.parent if kind in FOLDER_KINDS and ref.path is not None else None
+        if kind == "project" and folder is not None:
+            for warning in project.git_warnings(folder):
+                print(f"warning: {ref.ref}: {warning}", file=sys.stderr)
         edges = [
             row
             for row in relations.load_all()
@@ -1286,19 +1337,19 @@ def command_delete(args: argparse.Namespace) -> None:
 
 
 def command_delete_any(args: argparse.Namespace) -> None:
-    """Top-level delete: the REF carries its kind, so no domain prefix is needed."""
+    """Top-level delete: the REF carries its kind, so no domain prefix is needed.
+    A relation REF removes that one edge; an object takes its edges with it."""
+    from ws_lib import relations
+
     groups: dict[str, list[str]] = {}
+    deletable = set(SPECS) | {"project", "literature", relations.REF_KIND}
     for value in args.objects:
         kind = value.split(":", 1)[0] if ":" in value else ""
-        if kind in ("project", "literature"):
-            fail(
-                f"{kind} has no delete: a project retires through its lifecycle "
-                "status, a literature item by hand"
-            )
-        if kind not in SPECS:
-            known = ", ".join(sorted(SPECS))
-            fail(f"expected a full REF (kind:key) of a deletable kind ({known}), got '{value}'")
+        if kind not in deletable:
+            fail(f"expected a full REF (kind:key) of a deletable kind ({', '.join(sorted(deletable))}), got '{value}'")
         groups.setdefault(kind, []).append(value)
+    if relations.REF_KIND in groups:
+        relations.delete_refs(groups.pop(relations.REF_KIND), args.dry_run)
     for kind, values in groups.items():
         command_delete(argparse.Namespace(
             object_type=kind, objects=values, dry_run=args.dry_run,
@@ -1413,14 +1464,15 @@ def add_add_parser(sub: argparse._SubParsersAction) -> None:
 def add_delete_parser(sub: argparse._SubParsersAction) -> None:
     delete = sub.add_parser(
         "delete",
-        help="delete objects by REF; their relations are removed with them",
-        description="Delete objects by REF; their relations are removed with them.",
+        help="delete objects or relations by REF; an object's relations go with it",
+        description="Delete objects or relations by REF. An object's relations are "
+        "removed with it; a relation:<id> removes that one edge.",
     )
     delete.add_argument(
         "objects",
         nargs="+",
         metavar="REF",
-        help="canonical kind:<key> references; the kind is read from the REF",
+        help="canonical kind:<key> or relation:<id> references; the kind is read from the REF",
     )
     delete.add_argument("--dry-run", action="store_true")
     delete.set_defaults(func=command_delete_any)
@@ -1429,38 +1481,63 @@ def add_delete_parser(sub: argparse._SubParsersAction) -> None:
 def command_show_any(args: argparse.Namespace) -> None:
     """Top-level show: the REF carries its kind, so no domain prefix is needed.
 
-    `ws show relations [of] REF` is the sentence form for edges -- the same
-    grammar `ws relate A to B as words` established.
+    An object prints with its relations underneath, each named by its own
+    `relation:<id>` REF, so the graph around it comes with no second command;
+    `--as` narrows that list to one relation word. A relation REF shows that
+    edge in full. `ws show ASPECT of REF` shows one aspect of an object in
+    full (contracts/context.md). `ws show relations [of] REF` is the older
+    spelling of the edge list and still runs.
     """
+    from ws_lib import context as context_layer
+    from ws_lib import relations
+
     values = list(args.objects)
+    if values and values[0] in context_layer.ASPECTS:
+        aspect, rest = values[0], values[1:]
+        if rest[:1] == ["of"]:
+            rest = rest[1:]
+        if len(rest) != 1:
+            fail(f"show {aspect} takes exactly one REF: `ws show {aspect} of <kind>:<key>`")
+        context_layer.command_show_aspect(aspect, rest[0], args.json)
+        return
     if values and values[0] == "relations":
         values = values[1:]
         if values and values[0] == "of":
             values = values[1:]
         if len(values) != 1:
-            fail("show relations takes exactly one REF: `ws show relations of <kind>:<key>`")
-        from ws_lib import relations
-
+            fail("show relations takes exactly one REF; `ws show <kind>:<key>` lists its relations")
         relations.command_relations_show(argparse.Namespace(
             reference=values[0], relation=args.relation, json=args.json,
         ))
         return
-    if args.relation:
-        fail("--as filters edges; use it with `ws show relations of <kind>:<key>`")
-    known = sorted(set(SPECS) | {"project", "literature"})
+    known = sorted(set(SPECS) | {"project", "literature", relations.REF_KIND})
     resolved = []
     for value in values:
         kind = value.split(":", 1)[0] if ":" in value else ""
         if kind not in known:
             fail(f"expected a full REF (kind:key) of a known kind ({', '.join(known)}), got '{value}'")
-        resolved.append((value, kind))
+        if kind == relations.REF_KIND:
+            resolved.append((value, kind, relations.require(value)))
+        else:
+            resolved.append((value, kind, resolve(value, kind)))
     if args.json:
-        records = [_show_data(value, kind) for value, kind in resolved]
+        records = []
+        for value, kind, found in resolved:
+            if kind == relations.REF_KIND:
+                records.append(relations.show_record(found))
+                continue
+            data = public_object_data(found)
+            data.update(context_layer.show_summary(found))
+            data["relations"] = relations.edges_of(found.id, args.relation or "")
+            records.append(data)
         _json_or_lines(records[0] if len(records) == 1 else records, True, [])
         return
-    for index, (value, kind) in enumerate(resolved):
+    for index, (value, kind, found) in enumerate(resolved):
         if index:
             print()
+        if kind == relations.REF_KIND:
+            print("\n".join(relations.show_lines(relations.show_record(found))))
+            continue
         # Literature and projects carry rich derived views (acquisition
         # status, derived links); the other kinds render their record.
         if kind == "literature":
@@ -1470,19 +1547,39 @@ def command_show_any(args: argparse.Namespace) -> None:
                 argparse.Namespace(ref=value, projects_dir=None)
             )
         else:
-            print("\n".join(_show_lines(_show_data(value, kind))))
+            print("\n".join(_show_lines(public_object_data(found))))
+        for line in context_layer.show_summary_lines(found, context_layer.show_summary(found)):
+            print(line)
+        print("\n".join(relations.edge_lines(relations.edges_of(found.id, args.relation or ""))))
 
 
 def command_edit_any(args: argparse.Namespace) -> None:
     """Top-level edit: read the kind from the REF, then apply that kind's flags."""
+    from ws_lib import relations
+
     value = args.object
     kind = value.split(":", 1)[0] if ":" in value else ""
-    if kind == "project":
-        fail("project has no edit: curated by hand through `ws projects` commands")
-    if kind not in SPECS and kind != "literature":
-        known = ", ".join(sorted(set(SPECS) | {"literature"}))
-        fail(f"expected a full REF (kind:key) of an editable kind ({known}), got '{value}'")
+    editable = set(SPECS) | {"project", "literature", relations.REF_KIND}
+    if kind not in editable:
+        fail(f"expected a full REF (kind:key) of an editable kind ({', '.join(sorted(editable))}), got '{value}'")
+    if kind == relations.REF_KIND:
+        from ws_lib import registry
+
+        flags = argparse.ArgumentParser(
+            prog="ws edit relation:<id>",
+            description="change one edge's relation words, validity dates or provenance",
+        )
+        relations.edit_arguments(flags)
+        registry.finalize_help(flags)
+        relations.edit_ref(value, flags.parse_args(args.flags))
+        return
     flags = argparse.ArgumentParser(prog=f"ws edit {kind}:<key>", description=f"edit one {kind}")
+    if kind == "project":
+        project.project_edit_arguments(flags)
+        namespace = flags.parse_args(args.flags)
+        namespace.ref = value
+        project.command_project_edit(namespace)
+        return
     if kind == "literature":
         from ws_lib import literature
 
@@ -1509,17 +1606,30 @@ def command_edit_any(args: argparse.Namespace) -> None:
 def add_show_parser(sub: argparse._SubParsersAction) -> None:
     show = sub.add_parser(
         "show",
-        help="show objects by REF, or `show relations of REF` for edges",
-        description="Show objects by REF; `ws show relations of REF` shows edges.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="show objects with their relations, or one relation, by REF",
+        description="Show objects by REF, each followed by its relations; a "
+        "relation:<id> shows that one edge in full, and `ASPECT of REF` one "
+        "aspect of an object: purpose, log, location or instructions.",
+        epilog="""Examples:
+  ws show person:<key>                    the record, where its content lives, its relations
+  ws show person:<key> --as works-at      only relations with that word
+  ws show relation:<id>                   one edge: direction, dates, source, history
+  ws show purpose of project:<key>        one aspect in full: purpose, log, location,
+                                          instructions (`ws context` shows them all)
+
+In the relations list, --> leaves the object and <-- arrives at it; each line
+starts with the edge's own REF for `ws edit` and `ws delete`.
+""",
     )
     show.add_argument(
         "objects",
         nargs="+",
         metavar="REF",
-        help="canonical kind:<key> references, or `relations [of] <kind>:<key>`",
+        help="canonical kind:<key> or relation:<id> references, or ASPECT of REF",
     )
     show.add_argument(
-        "--as", dest="relation", help="with `relations of`: only edges with this relation word"
+        "--as", dest="relation", help="list only relations with this relation word"
     )
     show.add_argument("--json", action="store_true", help="print JSON")
     show.set_defaults(func=command_show_any)
@@ -1571,10 +1681,12 @@ def add_list_parser(sub: argparse._SubParsersAction) -> None:
 def add_edit_parser(sub: argparse._SubParsersAction) -> None:
     edit = sub.add_parser(
         "edit",
-        help="edit one object by REF; flags follow the object's kind",
-        description="Edit one object by REF; the flags follow the object's kind.",
+        help="edit one object or relation by REF; flags follow its kind",
+        description="Edit one object or relation by REF; the flags follow its kind.",
     )
-    edit.add_argument("object", metavar="REF", help="canonical kind:<key> reference")
+    edit.add_argument(
+        "object", metavar="REF", help="canonical kind:<key> or relation:<id> reference"
+    )
     edit.add_argument(
         "flags",
         nargs=argparse.REMAINDER,
@@ -1596,17 +1708,6 @@ def add_document_parser(sub: argparse._SubParsersAction) -> argparse.ArgumentPar
     )
     taxonomy_cmd.set_defaults(func=document_taxonomy.command_taxonomy)
     document_taxonomy.add_parser(actions)
-    views = actions.add_parser(
-        "views",
-        help="manage derived by-type, by-date, and by-organisation views",
-    )
-    view_actions = views.add_subparsers(
-        dest="document_views_command",
-        required=True,
-    )
-    rebuild = view_actions.add_parser("rebuild", help="rebuild the derived by-* browse views from current data")
-    rebuild.add_argument("--json", action="store_true")
-    rebuild.set_defaults(func=command_document_views_rebuild)
     return parser
 
 

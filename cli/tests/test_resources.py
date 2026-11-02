@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ws_lib import catalog, indexing, paths, relations, resources
+from ws_lib import anatomy, catalog, indexing, paths, relations, resources
 
 
 class ResourceTests(unittest.TestCase):
@@ -35,7 +35,7 @@ class ResourceTests(unittest.TestCase):
             mock.patch.object(indexing, "INDEX", self.root / "search" / "index.sqlite"),
             mock.patch.object(catalog.project, "existing_project_names", return_value=[]),
             mock.patch.object(catalog.literature, "list_item_bibtex_files", return_value=[]),
-            mock.patch.object(resources.anatomy, "rebuild_documents"),
+            mock.patch.object(anatomy, "rebuild_documents"),
         ]
         for patcher in self.patchers:
             patcher.start()

@@ -114,6 +114,7 @@ class ProjectInstallTests(unittest.TestCase):
         self.assertIn("  venv: .venv", yaml_after)
         # slides implies venv implies python implies code
         self.assertTrue((root / "code").is_dir())
+        self.assertTrue((root / "slides" / ".gitkeep").exists())
         self.assertTrue((root / "pyproject.toml").exists())
         venv_py = str(root / ".venv" / "bin" / "python")
         self.assertIn([venv_py, "-m", "pip", "install", "-e", str(self.slide_generator)], calls)
@@ -154,6 +155,80 @@ class ProjectInstallTests(unittest.TestCase):
 
         self.assertEqual(calls, [])
         self.assertIn("nothing recorded to install", output)
+
+    def make_legacy_layout(self, name: str) -> Path:
+        """A project as the previous templates left it: no LOG.md, in/ or
+        out/, `out/` ignored wholesale, and the old AGENTS.md rules."""
+        root = self.create_project(name)
+        (root / "LOG.md").unlink()
+        for folder in ("in", "out"):
+            (root / folder / ".gitkeep").unlink()
+            (root / folder).rmdir()
+        (root / ".gitignore").write_text(
+            ".DS_Store\n\n# Generated outputs and scratch\nout/\ntmp/\n\ndata/**\n!data/**/\n",
+            encoding="utf-8",
+        )
+        (root / "AGENTS.md").write_text(
+            f"# AGENTS — {name}\n\nRead first:\n- README.md\n- project.yaml\n- this file\n\n"
+            "Rules:\n- do not create unauthorized top-level folders\n- put stable docs in docs/\n"
+            "- put transient notes in notes/\n- put generated outputs in out/\n"
+            "- put disposable scratch in tmp/\n- ask before destructive changes\n- never push to main\n\n"
+            "Agent instructions:\n- this file is project-wide context\n- do not store agent memory in this file\n",
+            encoding="utf-8",
+        )
+        (root / "notes").mkdir()
+        (root / "notes" / "keep.md").write_text("old notes\n", encoding="utf-8")
+        return root
+
+    def test_bare_install_migrates_a_legacy_layout(self) -> None:
+        root = self.make_legacy_layout("legacy-layout")
+
+        _calls, output = self.run_install(name="legacy-layout")
+
+        log = (root / "LOG.md").read_text(encoding="utf-8")
+        self.assertIn("- Did: started this log. Earlier history is in the git log and README.md.", log)
+        for folder in ("in", "out"):
+            self.assertTrue((root / folder / ".gitkeep").exists(), folder)
+        ignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
+        self.assertNotIn("out/", ignore)
+        self.assertEqual(ignore[ignore.index("out/**"):ignore.index("out/**") + 4],
+                         ["out/**", "!out/**/", "!out/**/*.md", "!out/**/.gitkeep"])
+        self.assertIn("slides/**/*.pptx", ignore)
+        self.assertNotIn("# Generated outputs and scratch", ignore)
+        self.assertEqual(output.count("LOG.md"), 1)
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertNotIn("put transient notes in notes/", agents)
+        self.assertNotIn("unauthorized", agents)
+        self.assertIn("- README.md\n- LOG.md (newest entries first", agents)
+        self.assertLess(agents.index("Folders:"), agents.index("Rules:"))
+        self.assertIn("Log:\n- before ending a working session", agents)
+        self.assertIn("- never push to main", agents)  # project-specific rules survive
+        self.assertIn("session state in this file; that goes in LOG.md", agents)
+        # additive only: nothing moved or deleted
+        self.assertEqual((root / "notes" / "keep.md").read_text(encoding="utf-8"), "old notes\n")
+        self.assertIn("nothing recorded to install", output)
+
+    def test_layout_migration_is_idempotent(self) -> None:
+        root = self.make_legacy_layout("legacy-twice")
+        self.run_install(name="legacy-twice")
+        snapshot = {name: (root / name).read_text(encoding="utf-8") for name in ("LOG.md", ".gitignore", "AGENTS.md")}
+
+        _calls, output = self.run_install(name="legacy-twice")
+
+        for name, text in snapshot.items():
+            self.assertEqual((root / name).read_text(encoding="utf-8"), text, name)
+        self.assertNotIn("updated:", output)
+        self.assertNotIn("created:", output)
+
+    def test_customized_agents_md_without_rules_block_gets_appended_rules(self) -> None:
+        root = self.create_project("custom-agents")
+        (root / "AGENTS.md").write_text("# Custom\n\nOur own instructions.\n", encoding="utf-8")
+
+        self.run_install(name="custom-agents")
+
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        self.assertTrue(agents.startswith("# Custom\n\nOur own instructions.\n\nFolders:\n"))
+        self.assertIn("Log:\n", agents)
 
     def test_unknown_feature_fails(self) -> None:
         self.create_project("typo-target")

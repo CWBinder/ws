@@ -7,6 +7,7 @@ import contextlib
 import datetime as dt
 import io
 import json
+import re
 import shlex
 import sys
 from pathlib import Path
@@ -46,6 +47,31 @@ def get(relation_id: str) -> dict | None:
     if row:
         row["_path"] = str(path)
     return row or None
+
+
+# An edge is addressed like an object: `relation:<key>`, where the key is its
+# id without the storage prefix (contracts/relations.md, Addressing an edge).
+REF_KIND = "relation"
+
+
+def ref_of(row: dict) -> str:
+    return f"{REF_KIND}:{str(row.get('id', '')).removeprefix('rel_')}"
+
+
+def find(value: str) -> dict | None:
+    """The edge a REF names. The bare storage id (`rel_...`) that the older
+    spellings printed still resolves; anything else names no edge."""
+    key = value.removeprefix(f"{REF_KIND}:")
+    if not re.fullmatch(r"[0-9A-Za-z_]+", key):
+        return None
+    return get(key if key.startswith("rel_") else f"rel_{key}")
+
+
+def require(value: str) -> dict:
+    row = find(value)
+    if not row:
+        fail(f"no relation {value}; `ws show REF` lists an object's relations with their REFs")
+    return row
 
 
 def object_lookup() -> dict:
@@ -100,6 +126,119 @@ def for_object(object_id: str) -> list[dict]:
         row for row in load_all()
         if row.get("subject") == object_id or row.get("object") == object_id
     ]
+
+
+def _endpoints(ids: set[str]) -> dict[str, tuple[str, str]]:
+    """REF and name for each object id: from the derived index when it exists
+    (fresh or absent, never stale), otherwise from one catalog scan."""
+    from ws_lib import indexing
+
+    if not ids:
+        # Nothing to name; without this the fallback scans the whole catalog.
+        return {}
+    if indexing.INDEX.exists():
+        try:
+            connection = indexing.connect()
+            try:
+                found = connection.execute(
+                    f"SELECT id, ref, title FROM objects WHERE id IN ({','.join('?' * len(ids))})",
+                    sorted(ids),
+                ).fetchall()
+            finally:
+                connection.close()
+            return {object_id: (ref, title) for object_id, ref, title in found}
+        except Exception:
+            pass
+    return {
+        object_id: (obj.ref, obj.title)
+        for object_id, obj in object_lookup().items()
+        if object_id in ids
+    }
+
+
+def edges_of(object_id: str, relation: str = "") -> list[dict]:
+    """One object's edges as `ws show REF` lists them: each edge's REF and
+    words, the direction seen from this object, and the other endpoint."""
+    rows = [
+        row for row in for_object(object_id)
+        if not relation or row.get("relation") == relation
+    ]
+    others = {
+        str(row.get("object") if row.get("subject") == object_id else row.get("subject"))
+        for row in rows
+    }
+    names = _endpoints(others)
+    edges = []
+    for row in rows:
+        outgoing = row.get("subject") == object_id
+        other = str(row.get("object") if outgoing else row.get("subject"))
+        other_ref, other_name = names.get(other, (other, ""))
+        edges.append({
+            "ref": ref_of(row),
+            "relation": str(row.get("relation") or "related"),
+            "direction": "out" if outgoing else "in",
+            "other": other_ref,
+            "other_name": other_name,
+            "valid_from": str(row.get("valid_from") or ""),
+            "valid_until": str(row.get("valid_until") or ""),
+        })
+    edges.sort(key=lambda edge: (
+        edge["direction"] != "out", edge["relation"], edge["other_name"].casefold(), edge["other"],
+    ))
+    return edges
+
+
+def _window(row: dict) -> str:
+    start, end = str(row.get("valid_from") or ""), str(row.get("valid_until") or "")
+    if start and end:
+        return f"  [{start} to {end}]"
+    if start or end:
+        return f"  [from {start}]" if start else f"  [until {end}]"
+    return ""
+
+
+def edge_lines(edges: list[dict]) -> list[str]:
+    """The relations block under a shown record: `-->` leaves the object,
+    `<--` arrives at it, and each line starts with the edge's own REF."""
+    if not edges:
+        return ["relations: none"]
+    width = max(len(edge["ref"]) for edge in edges)
+    lines = [f"relations: {len(edges)}"]
+    for edge in edges:
+        words = edge["relation"]
+        arrow = f"--{words}-->" if edge["direction"] == "out" else f"<--{words}--"
+        other = f"{edge['other']} ({edge['other_name']})" if edge["other_name"] else edge["other"]
+        lines.append(f"  {edge['ref']:<{width}}  {arrow} {other}{_window(edge)}")
+    return lines
+
+
+def show_record(row: dict) -> dict:
+    """One edge in full, as `ws show relation:<key>` prints it."""
+    public = {key: value for key, value in row.items() if not key.startswith("_")}
+    subject, object_value = str(row.get("subject", "")), str(row.get("object", ""))
+    names = _endpoints({subject, object_value})
+    public["ref"] = ref_of(row)
+    public["subject"], public["subject_name"] = names.get(subject, (subject, ""))
+    public["object"], public["object_name"] = names.get(object_value, (object_value, ""))
+    return public
+
+
+def show_lines(record: dict) -> list[str]:
+    def label(side: str) -> str:
+        name = record.get(f"{side}_name")
+        return f"{record[side]} ({name})" if name else str(record[side])
+
+    lines = [
+        f"ref: {record['ref']}",
+        f"subject: {label('subject')}",
+        f"relation: {record.get('relation') or 'related'}",
+        f"object: {label('object')}",
+    ]
+    for key in ("valid_from", "valid_until", "source", "observed_at", "created_at", "updated_at"):
+        if record.get(key):
+            lines.append(f"{key}: {record[key]}")
+    lines.extend(f"provenance: {entry}" for entry in record.get("provenance") or [])
+    return lines
 
 
 def create(
@@ -420,27 +559,77 @@ def command_relate(args: argparse.Namespace) -> None:
         args.observed_at or "",
     )
     output = public_relation(row)
+    output["ref"] = ref_of(row)
     output["created"] = created
     _rebuild_document_views_if_touched(row)
     if args.json:
         print(json.dumps(output, ensure_ascii=False, indent=2, sort_keys=True))
     else:
         action = "created" if created else "exists"
-        print(f"{action}: {row['id']}")
+        print(f"{action}: {output['ref']}")
         print(f"{output['subject']} --{row['relation']}--> {output['object']}")
 
 
+def _older_spelling(newer: str) -> None:
+    """The older edge spellings still run; stderr names what replaced them."""
+    print(f"note: the current spelling is `{newer}`", file=sys.stderr)
+
+
+def _delete_row(row: dict, dry_run: bool) -> None:
+    record = show_record(row)
+    edge = f"{record['ref']} ({record['subject']} --{record.get('relation') or 'related'}--> {record['object']})"
+    if dry_run:
+        print(f"would delete: {edge}")
+        return
+    remove(row)
+    _rebuild_document_views_if_touched(row)
+    print(f"deleted: {edge}")
+    # The store is not under git, so the undo path is the command itself.
+    print(f"restore with: {restore_hint(row)}")
+
+
+def delete_refs(values: list[str], dry_run: bool = False) -> None:
+    """`ws delete relation:<id> ...`. Every REF must resolve before any edge
+    goes, so a typo in the second cannot leave the first half-done."""
+    for row in [require(value) for value in values]:
+        _delete_row(row, dry_run)
+
+
+def edit_arguments(parser: argparse.ArgumentParser) -> None:
+    """The flags that change an edge, shared by `ws edit relation:<id>` and
+    the older `ws relations edit`; their help is the registry's shared text."""
+    parser.add_argument("--as", dest="relation")
+    parser.add_argument("--from", dest="valid_from")
+    parser.add_argument("--until", dest="valid_until")
+    parser.add_argument("--source")
+    parser.add_argument("--observed-at")
+    parser.add_argument("--json", action="store_true")
+
+
+def edit_ref(value: str, args: argparse.Namespace) -> dict:
+    """`ws edit relation:<id> --as WORDS --from DATE --until DATE`."""
+    row = require(value)
+    words = args.relation.strip().lower().replace(" ", "-") if args.relation else None
+    changes = {"relation": words, "valid_from": args.valid_from, "valid_until": args.valid_until}
+    row = edit(str(row["id"]), changes, args.source or "", args.observed_at or "")
+    _rebuild_document_views_if_touched(row)
+    if args.json:
+        print(json.dumps(show_record(row), ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"updated: {ref_of(row)}")
+    return row
+
+
 def command_unrelate(args: argparse.Namespace) -> None:
+    """The older spelling of `ws delete relation:<id>`; it also still takes
+    the sentence that created the edge."""
     values = args.references
     if "as" in values or "to" in values:
         subject_value, object_value, phrase = _natural_endpoints(values, args.relation or "")
         values = [subject_value, object_value]
         args.relation = phrase.strip().lower().replace(" ", "-") if phrase else args.relation
     if len(values) == 1:
-        row = get(values[0])
-        if not row:
-            fail(f"relationship does not exist: {values[0]}")
-        matches = [row]
+        matches = [require(values[0])]
     elif len(values) == 2:
         subject = catalog.resolve(values[0])
         object_ref = catalog.resolve(values[1])
@@ -451,78 +640,94 @@ def command_unrelate(args: argparse.Namespace) -> None:
             and (not args.relation or row.get("relation") == args.relation)
         ]
     else:
-        fail("unrelate expects RELATION_ID or SUBJECT OBJECT")
+        fail("unrelate expects a relation REF, or SUBJECT to OBJECT")
     if len(matches) != 1:
         if not matches:
             fail("no relationship matches")
-        fail("relationship is ambiguous: " + ", ".join(str(row.get("id")) for row in matches))
-    row = matches[0]
-    if args.dry_run:
-        print(f"would delete: {row['id']}")
-        return
-    remove(row)
-    _rebuild_document_views_if_touched(row)
-    print(f"deleted: {row['id']}")
-    print(f"restore with: {restore_hint(row)}")
+        fail("relationship is ambiguous: " + ", ".join(ref_of(row) for row in matches))
+    _delete_row(matches[0], args.dry_run)
+    _older_spelling(f"ws delete {ref_of(matches[0])}")
 
 
 def command_relations_show(args: argparse.Namespace) -> None:
-    direct = get(args.reference)
+    """The older `ws show relations of REF`: `ws show REF` lists the same
+    edges under the record, and `ws show relation:<id>` shows one."""
+    direct = find(args.reference)
     if direct:
-        rows = [direct]
-    else:
-        ref = catalog.resolve(args.reference)
-        rows = for_object(ref.id)
-    if args.relation:
-        rows = [row for row in rows if row.get("relation") == args.relation]
-    lookup = object_lookup()
-    public = [public_relation(row, lookup) for row in rows]
+        record = show_record(direct)
+        if args.json:
+            print(json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True))
+        else:
+            print("\n".join(show_lines(record)))
+        _older_spelling(f"ws show {record['ref']}")
+        return
+    ref = catalog.resolve(args.reference)
+    edges = edges_of(ref.id, args.relation or "")
     if args.json:
-        print(json.dumps(public[0] if direct and public else public, ensure_ascii=False, indent=2, sort_keys=True))
-        return
-    if not public:
-        print("none")
-        return
-    for row in public:
-        subject = row["subject"]
-        object_ref = row["object"]
-        subject_label = f"{subject} ({row['subject_name']})" if row.get("subject_name") else subject
-        object_label = f"{object_ref} ({row['object_name']})" if row.get("object_name") else object_ref
-        print(
-            f"{row['id']}\t{subject_label} --{row['relation']}--> {object_label}"
-        )
+        print(json.dumps(edges, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print("\n".join(edge_lines(edges)))
+    _older_spelling(f"ws show {ref.ref}" + (f" --as {args.relation}" if args.relation else ""))
 
 
 def command_relations_edit(args: argparse.Namespace) -> None:
-    changes = {
-        "relation": args.relation,
-        "valid_from": args.valid_from,
-        "valid_until": args.valid_until,
-    }
-    row = edit(args.relation_id, changes, args.source or "", args.observed_at or "")
-    _rebuild_document_views_if_touched(row)
-    if args.json:
-        print(json.dumps(public_relation(row), ensure_ascii=False, indent=2, sort_keys=True))
-    else:
-        print(f"updated: {row['id']}")
+    """The older spelling of `ws edit relation:<id>`."""
+    row = edit_ref(args.relation_id, args)
+    _older_spelling(f"ws edit {ref_of(row)}")
 
 
 def command_relations_vocabulary(_args: argparse.Namespace) -> None:
-    """Bare `ws relations`: which relation words this workspace actually uses.
+    """Bare `ws relations`: which relation words this workspace actually uses,
+    how often, and between which kinds, subject first.
 
     The vocabulary is open -- `ws relate` accepts any words -- so the only
-    truthful listing is the one read back from the edges themselves."""
-    counts: dict[str, int] = {}
+    truthful listing is the one read back from the edges themselves. The
+    kinds show which way round a word is used, which the count alone hides."""
+    pairs: dict[str, dict[str, int]] = {}
     for row in load_all():
         word = str(row.get("relation", "") or "related")
-        counts[word] = counts.get(word, 0) + 1
-    if not counts:
+        pair = f"{_kind_of(str(row.get('subject', '')))} → {_kind_of(str(row.get('object', '')))}"
+        pairs.setdefault(word, {})
+        pairs[word][pair] = pairs[word].get(pair, 0) + 1
+    if not pairs:
         print("none")
         return
-    width = max(14, max(len(word) for word in counts) + 1)
-    for word in sorted(counts):
-        edges = counts[word]
-        print(f"{word:<{width}} {edges} edge{'s' if edges != 1 else ''}")
+    width = max(14, max(len(word) for word in pairs) + 1)
+    for word in sorted(pairs):
+        edges = sum(pairs[word].values())
+        ranked = sorted(pairs[word].items(), key=lambda item: (-item[1], item[0]))
+        kinds = ", ".join(
+            pair if len(ranked) == 1 else f"{pair} ({count})" for pair, count in ranked[:4]
+        )
+        if len(ranked) > 4:
+            kinds += f", +{len(ranked) - 4} more"
+        count = f"{edges} edge{'s' if edges != 1 else ''}"
+        print(f"{word:<{width}} {count:<10} {kinds}")
+
+
+def _kind_of(object_id: str) -> str:
+    """An endpoint's kind, read from its id without loading the object:
+    minted ids carry their kind's prefix (`org_...`), adapter kinds store
+    their REF (`project:...`)."""
+    if ":" in object_id:
+        return object_id.split(":", 1)[0]
+    prefix = object_id.split("_", 1)[0]
+    return next((kind for kind, spec in catalog.SPECS.items() if spec["prefix"] == prefix), "?")
+
+
+def point_edge_reads_at_show(argv: list[str]) -> None:
+    """`ws relations of REF` and `ws relations REF` are the natural guesses for
+    an object's edges, and argparse answers both with a bare `invalid
+    choice`. `ws show REF` lists them, so refuse with that command."""
+    if argv[:1] != ["relations"] or len(argv) < 2:
+        return
+    if argv[1] != "of" and (":" not in argv[1] or argv[1].startswith("-")):
+        return
+    words = argv[2:] if argv[1] == "of" else argv[1:]
+    fail(
+        "an object's relations are listed by `ws show`, under the record\n"
+        f"try: ws show {' '.join(words) if words else 'REF'}"
+    )
 
 
 def add_parsers(sub: argparse._SubParsersAction) -> None:
@@ -530,7 +735,8 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
         "relate",
         help="assert one edge between two objects",
         description="Assert one edge: `ws relate A to B as works-at`. The filler "
-        "words `to` and `as` are optional. Duplicate edges are no-ops.",
+        "words `to` and `as` are optional. Duplicate edges are no-ops. Prints "
+        "the edge's REF, relation:<id>, for `ws show`, `ws edit` and `ws delete`.",
     )
     relate.add_argument(
         "references",
@@ -548,13 +754,13 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
 
     unrelate = sub.add_parser(
         "unrelate",
-        help="remove an edge, by relation id or by sentence",
-        description="Remove an edge, named either by its relation id or by the "
-        "same sentence that created it.",
+        help="remove an edge; the older spelling of `ws delete relation:<id>`",
+        description="Remove an edge, named by its relation REF or by the sentence "
+        "that created it. The older spelling of `ws delete relation:<id>`.",
     )
     unrelate.add_argument(
         "references", nargs="+", metavar="REF",
-        help="RELATION_ID, or SUBJECT_REF [to] OBJECT_REF [as RELATION WORDS]",
+        help="relation:<id>, or SUBJECT_REF [to] OBJECT_REF [as RELATION WORDS]",
     )
     unrelate.add_argument("--as", dest="relation")
     unrelate.add_argument("--dry-run", action="store_true")
@@ -562,22 +768,25 @@ def add_parsers(sub: argparse._SubParsersAction) -> None:
 
     parser = sub.add_parser(
         "relations",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         help="the graph layer: bare, it lists the relation words in use",
-        description="The graph of edges between objects. Bare, it lists the "
-        "relation vocabulary actually in use, with how many edges carry each "
-        "word. Edges are written only by `ws relate`/`ws unrelate` and read "
-        "with `ws show relations of REF`.",
+        description="The graph of edges between objects. Bare, it lists the relation\n"
+        "words in use, with how many edges carry each.",
+        epilog="""Every edge command:
+  ws relate REF to REF as WORDS        add an edge; prints its relation:<id>
+  ws show REF                          an object, then its relations with their REFs
+  ws show relation:<id>                one edge in full: dates, source, history
+  ws edit relation:<id> --as WORDS     change its words or validity dates
+  ws delete relation:<id>              remove it
+""",
     )
     parser.set_defaults(func=command_relations_vocabulary)
     actions = parser.add_subparsers(dest="relations_command", metavar="COMMAND")
-    # Reading edges is `ws show relations of REF`; this service keeps only
-    # the edge maintenance tools.
-    edit_parser = actions.add_parser("edit", help="change one existing edge's relation words or validity")
+    # Edges are read, changed and removed through the universal REF tools;
+    # `edit` stays here as the older spelling of `ws edit relation:<id>`.
+    edit_parser = actions.add_parser(
+        "edit", help="change an edge; the older spelling of `ws edit relation:<id>`"
+    )
     edit_parser.add_argument("relation_id")
-    edit_parser.add_argument("--as", dest="relation")
-    edit_parser.add_argument("--from", dest="valid_from")
-    edit_parser.add_argument("--until", dest="valid_until")
-    edit_parser.add_argument("--source")
-    edit_parser.add_argument("--observed-at")
-    edit_parser.add_argument("--json", action="store_true")
+    edit_arguments(edit_parser)
     edit_parser.set_defaults(func=command_relations_edit)

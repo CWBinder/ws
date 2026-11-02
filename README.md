@@ -6,8 +6,8 @@ explicit relationships, so you can find a document by its project or browse
 papers by field without keeping duplicate copies.
 
 Records are plain YAML and bibliographic files. Content stays on your machine;
-folder views, a search index and an optional Markdown wiki are generated from
-those records. People and agents use the same commands.
+folder views, a search index, an optional Markdown wiki and a one-page HTML
+dashboard are generated from those records. People and agents use the same commands.
 
 ## Origins and acknowledgements
 
@@ -55,8 +55,9 @@ document, connect them and find it again.
 
 ## Find your way
 
-- [Documentation](docs/README.md): shared guides for people and agents.
-- `ws help COMMAND`: syntax; `ws describe COMMAND`: guide and declared effects.
+- `ws help`: the manual, shared by people and agents. Bare, the overview;
+  `ws help <kind>` for one kind, `ws help <command>` for one command.
+- `ws describe COMMAND`: what a command reads and changes.
 - [SKILL.md](SKILL.md): the operating manual for agents using ws.
 - [AGENTS.md](AGENTS.md) and [contracts](contracts/README.md): contributing to ws.
 

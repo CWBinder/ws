@@ -35,7 +35,7 @@ ws documents types list|add|rename|remove
 ```
 
 Each command has exactly one spelling. The domain words host only their own
-specialists (taxonomy, views, installs, merges); the generic verbs live at
+specialists (taxonomy, installs, merges); the generic verbs live at
 the top level and nowhere else.
 
 Do not maintain a second hand-written exhaustive command list here. The
@@ -61,3 +61,23 @@ Replace `<key>` with a search result. For tasks and contacts, start with
 `ws help create task`, `ws help add person`, `ws help add organisation` or
 `ws help add event`; connect the resulting records using the
 [relationship guide](../relationships.md).
+
+## Rebuilding derived layers
+
+The browse folders, the search index, the generated wiki and the dashboard are
+all derived from the records, so deleting any of them loses nothing.
+
+```bash
+ws rebuild
+ws rebuild views documents
+ws rebuild index
+```
+
+Bare `ws rebuild` regenerates all four layers: views, index, wiki, dashboard,
+in that order. Name a target (`views`, `index`, `wiki`, `dashboard`) to
+rebuild only that one, and add a domain after `views` to rebuild only that
+domain's folders. Ordinary edits already refresh the views they touch, and
+search rebuilds a missing index on its own, so run this after changing the
+browse settings or when a layer looks stale. The older spellings
+(`ws documents views rebuild`, `ws index rebuild`, `ws wiki build`,
+`ws dashboard build`) still work and print the current one.

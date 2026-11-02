@@ -1,0 +1,1298 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workspace Dashboard</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --surface-2: #f2f1ed;
+  --surface-3: #e8e7e2;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.10);
+  --border-strong: rgba(11, 11, 11, 0.22);
+  --g1: #2a78d6;
+  --g2: #eb6834;
+  --g3: #1baf7a;
+  --edge: rgba(11, 11, 11, 0.15);
+  --edge-hi: rgba(11, 11, 11, 0.62);
+  --wash: rgba(11, 11, 11, 0.05);
+  --focus: #2a78d6;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.07);
+  --critical: #d03b3b;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --surface-2: #222220;
+    --surface-3: #2c2c2a;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --border: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(255, 255, 255, 0.24);
+    --g1: #3987e5;
+    --g2: #d95926;
+    --g3: #199e70;
+    --edge: rgba(255, 255, 255, 0.13);
+    --edge-hi: rgba(255, 255, 255, 0.72);
+    --wash: rgba(255, 255, 255, 0.06);
+    --focus: #3987e5;
+    --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --surface-2: #222220;
+  --surface-3: #2c2c2a;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.24);
+  --g1: #3987e5;
+  --g2: #d95926;
+  --g3: #199e70;
+  --edge: rgba(255, 255, 255, 0.13);
+  --edge-hi: rgba(255, 255, 255, 0.72);
+  --wash: rgba(255, 255, 255, 0.06);
+  --focus: #3987e5;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--page); }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+code, .mono { font-family: var(--mono); font-size: 0.88em; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.page { max-width: 1180px; margin: 0 auto; padding: 36px 24px 72px; }
+
+/* Header */
+.hero { display: grid; grid-template-columns: 1fr auto; gap: 8px 24px; align-items: start; }
+.eyebrow { margin: 0 0 10px; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(30px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -0.025em; font-weight: 680; max-width: 900px; }
+.lede { grid-column: 1 / -1; margin: 14px 0 0; max-width: 780px; font-size: 17px; color: var(--ink-2); }
+.lede code { color: var(--ink); background: var(--surface-2); padding: 1px 5px; border-radius: 5px; }
+.theme-toggle {
+  border: 1px solid var(--border-strong); background: var(--surface); border-radius: 999px;
+  padding: 6px 12px; font-size: 13px; color: var(--ink-2); cursor: pointer; white-space: nowrap;
+}
+.theme-toggle:hover { background: var(--surface-2); }
+
+/* Stat tiles */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 28px 0 22px; }
+.tile { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px 18px 15px; }
+.tile .value { font-size: 36px; font-weight: 660; letter-spacing: -0.02em; line-height: 1.05; }
+.tile .label { margin-top: 6px; font-size: 13.5px; color: var(--ink-2); }
+
+/* Cards & section heads */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 22px; margin-top: 18px; }
+.section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 20px; margin-bottom: 14px; }
+h2 { margin: 0; font-size: 22px; letter-spacing: -0.015em; font-weight: 650; }
+.section-head p { margin: 0; color: var(--ink-2); font-size: 14.5px; max-width: 640px; }
+
+/* Controls row */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: 12px; }
+.search { position: relative; }
+.search input {
+  width: 250px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border-strong);
+  background: var(--surface-2); color: var(--ink); font: inherit; font-size: 14px;
+}
+.search input::placeholder { color: var(--muted); }
+.search .found { margin-left: 8px; font-size: 13px; color: var(--ink-2); }
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.group-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); margin-right: 2px; font-weight: 560; }
+.group-label i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px 0 8px;
+  border-radius: 999px; border: 1px solid var(--border-strong); background: var(--surface);
+  font-size: 13px; cursor: pointer; color: var(--ink);
+}
+.chip .count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="false"] { opacity: 0.42; text-decoration: line-through; }
+.chip:hover { background: var(--wash); }
+.toggle { display: inline-flex; align-items: center; gap: 7px; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
+.segmented { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 10px; overflow: hidden; }
+.segmented button { border: 0; background: var(--surface); padding: 6px 12px; font-size: 13.5px; cursor: pointer; color: var(--ink-2); }
+.segmented button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+.zoom { display: inline-flex; gap: 4px; margin-left: auto; }
+.zoom button {
+  min-width: 34px; height: 32px; border-radius: 9px; border: 1px solid var(--border-strong);
+  background: var(--surface); cursor: pointer; font-size: 14px; color: var(--ink-2);
+}
+.zoom button:hover { background: var(--wash); }
+
+/* Graph */
+.graph-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 14px; }
+.stage {
+  position: relative; height: clamp(440px, 70vh, 780px); border-radius: 16px; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--border); touch-action: none; cursor: grab;
+}
+.stage.panning { cursor: grabbing; }
+.stage svg { width: 100%; height: 100%; display: block; user-select: none; -webkit-user-select: none; }
+.edge { stroke: var(--edge); stroke-width: 1; }
+.edge.hi { stroke: var(--edge-hi); stroke-width: 1.6; }
+.edge.dim { opacity: 0.08; }
+.node path { stroke: var(--surface); stroke-width: 1.5; }
+.node.dim { opacity: 0.13; }
+.node.selected path { stroke: var(--ink); stroke-width: 2.2; }
+.node.far { opacity: 0.26; }
+.edge.spoke { stroke: var(--edge-hi); stroke-opacity: 0.55; }
+.chip[data-centre="true"] { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); font-weight: 600; }
+.centre-note {
+  display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px;
+  border: 1px solid var(--ink); background: var(--surface); color: var(--ink); font-size: 13px; cursor: pointer;
+}
+.centre-note:hover { background: var(--wash); }
+.node.match path { stroke: var(--ink); stroke-width: 1.8; }
+.g1 { fill: var(--g1); } .g2 { fill: var(--g2); } .g3 { fill: var(--g3); }
+.label {
+  fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 3.5px; stroke-linejoin: round;
+  font-weight: 560; pointer-events: none;
+}
+.label.minor { fill: var(--ink-2); font-weight: 450; }
+.edge-label {
+  fill: var(--ink-2); paint-order: stroke; stroke: var(--surface); stroke-width: 3.5px; stroke-linejoin: round;
+  font-family: var(--mono); pointer-events: none;
+}
+.hint {
+  position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted);
+  background: color-mix(in srgb, var(--surface) 86%, transparent); padding: 3px 8px; border-radius: 7px; pointer-events: none;
+}
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; max-width: 300px; padding: 9px 11px 8px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 11px; box-shadow: var(--shadow);
+  font-size: 13px; line-height: 1.4;
+}
+.tip strong { display: block; font-size: 14px; font-weight: 620; color: var(--ink); margin-bottom: 3px; }
+.tip .row { display: flex; align-items: center; gap: 7px; color: var(--ink-2); }
+.tip .key { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+.tip .ref { margin-top: 4px; font-family: var(--mono); font-size: 11.5px; color: var(--muted); word-break: break-all; }
+
+/* Panel */
+.panel {
+  background: var(--surface-2); border-radius: 16px; padding: 16px 16px 12px;
+  height: clamp(440px, 70vh, 780px); overflow: auto;
+}
+.panel h3 { margin: 6px 0 4px; font-size: 18px; line-height: 1.25; letter-spacing: -0.01em; }
+.panel .kind-line { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.panel .ref { font-family: var(--mono); font-size: 12px; color: var(--muted); word-break: break-all; }
+.panel .sub { margin: 12px 0 6px; font-size: 13px; color: var(--ink-2); }
+.panel p { font-size: 14px; color: var(--ink-2); margin: 0 0 10px; }
+.panel .intro strong { color: var(--ink); }
+.rels { list-style: none; margin: 0; padding: 0; }
+.rels li { padding: 6px 0; border-top: 1px solid var(--border); }
+.rels .arrow { display: block; font-family: var(--mono); font-size: 11.5px; color: var(--muted); }
+.link-btn {
+  display: inline-flex; align-items: baseline; gap: 6px; background: none; border: 0; padding: 1px 0; text-align: left;
+  color: var(--ink); cursor: pointer; font-size: 13.5px; line-height: 1.35;
+}
+.link-btn svg { flex: none; transform: translateY(1px); }
+.link-btn:hover span { text-decoration: underline; text-underline-offset: 2px; }
+.picks { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 12px; }
+.ghost { border: 1px solid var(--border-strong); background: var(--surface); border-radius: 9px; padding: 5px 10px; cursor: pointer; font-size: 13px; color: var(--ink-2); }
+.ghost:hover { background: var(--wash); }
+
+/* Tables */
+.tables { display: grid; gap: 22px; }
+.tables h3 { margin: 0 0 8px; font-size: 16px; }
+.table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-weight: 600; color: var(--ink-2); background: var(--surface-2); position: sticky; top: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.ref { font-family: var(--mono); font-size: 12px; color: var(--ink-2); word-break: break-all; }
+details summary { cursor: pointer; font-weight: 600; margin-bottom: 8px; }
+.all-objects { max-height: 520px; overflow: auto; }
+
+/* State panels */
+.panels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.panels .card { margin-top: 0; }
+.panels h2 { font-size: 18px; }
+.root { margin: 10px 0 0; font-family: var(--mono); font-size: 13px; color: var(--muted); }
+.state-list { list-style: none; margin: 0; padding: 0; }
+.state-row {
+  display: grid; grid-template-columns: 124px minmax(0, 1fr) auto; gap: 4px 12px; align-items: baseline;
+  padding: 7px 0; border-top: 1px solid var(--border);
+}
+.when { font-size: 12.5px; color: var(--ink-2); white-space: nowrap; }
+.when.late { color: var(--ink); font-weight: 600; }
+.when-date { display: block; margin-left: 21px; font-weight: 400; color: var(--ink-2); }
+.flag {
+  display: inline-grid; place-items: center; width: 15px; height: 15px; margin-right: 6px; border-radius: 50%;
+  background: var(--critical); color: #ffffff; font-size: 10.5px; font-weight: 700; vertical-align: 1px;
+}
+.meta { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.subhead { margin: 16px 0 4px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.more, .empty { font-size: 13px; color: var(--muted); padding-top: 8px; }
+.group { margin-bottom: 12px; }
+.group .names { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.kind-counts { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 12px; font-size: 13px; color: var(--ink-2); }
+.kind-counts span { display: inline-flex; align-items: center; gap: 6px; }
+
+footer { margin-top: 44px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 16px; }
+
+@media (max-width: 960px) {
+  .graph-wrap { grid-template-columns: 1fr; }
+  .panel { height: auto; max-height: 520px; }
+  .panels { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .zoom { margin-left: 0; }
+}
+@media (max-width: 640px) {
+  .page { padding: 22px 16px 56px; }
+  .hero { grid-template-columns: 1fr; }
+  .theme-toggle { justify-self: start; }
+  .card { padding: 16px; border-radius: 16px; }
+  .state-row { grid-template-columns: 1fr auto; }
+  .state-row .when { grid-column: 1 / -1; }
+  .search input { width: 100%; }
+  .search { flex: 1 1 100%; }
+  .tile .value { font-size: 30px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="hero">
+    <div>
+      <p class="eyebrow">ws dashboard · built <span id="built"></span></p>
+      <h1>Workspace</h1>
+      <p class="root" id="root"></p>
+    </div>
+    <button class="theme-toggle" id="theme" type="button">Theme: auto</button>
+  </header>
+
+  <section class="stats" aria-label="Workspace at a glance">
+    <div class="tile"><div class="value" id="stat-objects"></div><div class="label">objects in <span id="stat-kinds"></span> kinds</div></div>
+    <div class="tile"><div class="value" id="stat-relations"></div><div class="label">relations, in <span id="stat-words"></span> relation words</div></div>
+    <div class="tile"><div class="value" id="stat-tasks"></div><div class="label" id="stat-tasks-label">open tasks</div></div>
+    <div class="tile"><div class="value" id="stat-loose"></div><div class="label">objects not yet connected</div></div>
+  </section>
+
+  <div class="panels">
+    <section class="card" aria-labelledby="due-title">
+      <div class="section-head"><h2 id="due-title">Due and coming up</h2></div>
+      <ul class="state-list" id="due-list"></ul>
+      <div id="undated"></div>
+    </section>
+    <section class="card" aria-labelledby="recent-title">
+      <div class="section-head"><h2 id="recent-title">Recently added</h2></div>
+      <ul class="state-list" id="recent-list"></ul>
+    </section>
+    <section class="card" aria-labelledby="projects-title">
+      <div class="section-head"><h2 id="projects-title">Projects</h2></div>
+      <div id="project-groups"></div>
+    </section>
+    <section class="card" aria-labelledby="loose-title">
+      <div class="section-head"><h2 id="loose-title">Not yet connected</h2></div>
+      <div id="loose"></div>
+    </section>
+  </div>
+
+  <section class="card" id="graph-card" aria-labelledby="graph-title">
+    <div class="section-head">
+      <h2 id="graph-title">The graph</h2>
+      <p>Every connected object and each relation between them. Colour is the family; shape is the kind.
+        Hover to identify a node, click to open its relations as <code>ws show</code> lists them.
+        Double-click a kind to put it at the centre.</p>
+    </div>
+
+    <div class="controls" id="controls">
+      <div class="search">
+        <input id="search" type="search" placeholder="Find: words in any order" aria-label="Find objects in the graph" autocomplete="off">
+        <span class="found" id="found" aria-live="polite"></span>
+      </div>
+      <div class="chip-group" id="chips"></div>
+      <button type="button" class="centre-note" id="centre-note" hidden></button>
+      <label class="toggle"><input type="checkbox" id="loners"> <span id="loners-label">Unlinked objects</span></label>
+      <div class="segmented" role="group" aria-label="View">
+        <button type="button" id="view-graph" aria-pressed="true">Graph</button>
+        <button type="button" id="view-table" aria-pressed="false">Table</button>
+      </div>
+      <div class="zoom" id="zoom">
+        <button type="button" id="zoom-out" aria-label="Zoom out">−</button>
+        <button type="button" id="zoom-in" aria-label="Zoom in">+</button>
+        <button type="button" id="zoom-fit">Fit</button>
+      </div>
+    </div>
+
+    <div class="graph-wrap" id="graph-view">
+      <div class="stage" id="stage">
+        <svg id="graph" aria-label="Knowledge graph of the workspace" role="img">
+          <g id="viewport">
+            <g id="edges"></g>
+            <g id="nodes"></g>
+            <g id="edge-labels"></g>
+            <g id="labels"></g>
+          </g>
+        </svg>
+        <div class="tip" id="tip" hidden></div>
+        <div class="hint">Scroll or pinch to zoom · drag to pan · double-click a kind above to centre it</div>
+      </div>
+      <aside class="panel" id="panel" aria-live="polite"></aside>
+    </div>
+
+    <div class="tables" id="table-view" hidden></div>
+  </section>
+
+  <footer>
+    Generated by <code>ws rebuild dashboard</code> from the workspace records on <span id="built-2"></span>. It is derived:
+    rebuild it after changes, delete it any time. Colours mark three families, checked for colour-blind readers;
+    shapes tell kinds apart, and the Table view lists everything the graph shows.
+  </footer>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+(() => {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("data").textContent);
+
+  // ---------- vocabulary ----------
+  const KINDS = [
+    { kind: "person", label: "people", group: "g1", shape: "circle" },
+    { kind: "organisation", label: "organisations", group: "g1", shape: "square" },
+    { kind: "event", label: "events", group: "g1", shape: "diamond" },
+    { kind: "project", label: "projects", group: "g2", shape: "circle" },
+    { kind: "task", label: "tasks", group: "g2", shape: "triangle" },
+    { kind: "profile", label: "profile", group: "g2", shape: "square" },
+    { kind: "document", label: "documents", group: "g3", shape: "circle" },
+    { kind: "literature", label: "literature", group: "g3", shape: "diamond" },
+    { kind: "resource", label: "resources", group: "g3", shape: "triangle" },
+  ];
+  const KIND = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
+  const GROUPS = { g1: "People & places", g2: "Your work", g3: "Sources" };
+  const FILLER = new Set(["a", "an", "the", "and", "or", "of", "for", "about", "on", "in", "at", "to", "from", "with", "by", "my", "is", "are", "where", "what", "which"]);
+  const SVGNS = "http://www.w3.org/2000/svg";
+
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs = {}, text) => {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  };
+  const svgEl = (tag, attrs = {}) => {
+    const node = document.createElementNS(SVGNS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    return node;
+  };
+  const fmt = (n) => n.toLocaleString("en-GB");
+  const clip = (text, n) => (text.length > n ? text.slice(0, n - 1) + "…" : text);
+
+  function shapePath(shape, r) {
+    switch (shape) {
+      case "square": { const h = r * 0.886; return `M${-h},${-h}h${2 * h}v${2 * h}h${-2 * h}Z`; }
+      case "diamond": { const d = r * 1.25; return `M0,${-d}L${d},0L0,${d}L${-d},0Z`; }
+      case "triangle": return `M0,${-1.555 * r}L${1.347 * r},${0.778 * r}L${-1.347 * r},${0.778 * r}Z`;
+      default: return `M${r},0A${r},${r} 0 1,1 ${-r},0A${r},${r} 0 1,1 ${r},0Z`;
+    }
+  }
+  function swatch(kind, size = 12) {
+    const info = KIND[kind];
+    const svg = svgEl("svg", { width: size, height: size, viewBox: "-8 -8 16 16", "aria-hidden": "true" });
+    svg.appendChild(svgEl("path", { d: shapePath(info.shape, 5.4), class: info.group }));
+    return svg;
+  }
+
+  // ---------- header ----------
+  const T = DATA.totals;
+  const kindCount = (kind) => DATA.kinds[kind] || 0;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const parseDay = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+  const dayDiff = (iso) => Math.round((parseDay(iso) - today) / 86400000);
+  function dayLabel(iso) {
+    const diff = dayDiff(iso);
+    if (diff === 0) return "today";
+    if (diff === 1) return "tomorrow";
+    if (diff === -1) return "yesterday";
+    const date = parseDay(iso), options = { weekday: "short", day: "numeric", month: "short" };
+    if (date.getFullYear() !== today.getFullYear()) options.year = "numeric";
+    return date.toLocaleDateString("en-GB", options);
+  }
+  const built = new Date(DATA.built);
+  const builtText = built.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  $("built").textContent = builtText;
+  $("built-2").textContent = builtText;
+  $("root").textContent = DATA.root;
+  const overdue = DATA.tasks.filter((t) => t.due && dayDiff(t.due) < 0);
+  $("stat-objects").textContent = fmt(T.objects);
+  $("stat-kinds").textContent = String(Object.keys(DATA.kinds).length);
+  $("stat-relations").textContent = fmt(T.relations);
+  $("stat-words").textContent = String(T.words);
+  $("stat-tasks").textContent = fmt(DATA.tasks.length);
+  $("stat-tasks-label").textContent = overdue.length ? `open tasks, ${overdue.length} overdue` : "open tasks";
+  $("stat-loose").textContent = fmt(T.objects - T.connected);
+
+  // ---------- theme ----------
+  const themeButton = $("theme");
+  const themes = ["auto", "light", "dark"];
+  let theme = "auto";
+  try { theme = localStorage.getItem("second-brain-theme") || "auto"; } catch (_) { /* storage blocked */ }
+  function applyTheme() {
+    if (theme === "auto") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = theme;
+    themeButton.textContent = `Theme: ${theme}`;
+  }
+  themeButton.addEventListener("click", () => {
+    theme = themes[(themes.indexOf(theme) + 1) % themes.length];
+    try { localStorage.setItem("second-brain-theme", theme); } catch (_) { /* storage blocked */ }
+    applyTheme();
+  });
+  applyTheme();
+
+  // ---------- graph model ----------
+  const nodes = DATA.nodes.map((n, i) => {
+    const info = KIND[n.kind] || KIND.document;
+    return { ...n, i, group: info.group, shape: info.shape, r: 3.6 + 1.85 * Math.sqrt(n.deg), x: 0, y: 0, vx: 0, vy: 0, fx: null, fy: null };
+  });
+  const links = DATA.links.map((l) => ({ source: nodes[l.s], target: nodes[l.t], w: l.w }));
+  const incident = new Map(nodes.map((n) => [n, []]));
+  links.forEach((l) => { incident.get(l.source).push(l); incident.get(l.target).push(l); });
+  const connected = nodes.filter((n) => n.deg > 0);
+  const loners = nodes.filter((n) => n.deg === 0);
+  const byRef = new Map(nodes.map((n) => [n.ref, n]));
+
+  // Deterministic layout: seeded jitter, phyllotaxis start (hubs in the middle).
+  let seed = 7;
+  const rand = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+  connected.forEach((n, i) => {
+    const radius = 12 * Math.sqrt(0.5 + i), angle = i * Math.PI * (3 - Math.sqrt(5));
+    n.x = radius * Math.cos(angle); n.y = radius * Math.sin(angle);
+  });
+
+  const linkCount = new Map();
+  links.forEach((l) => {
+    linkCount.set(l.source, (linkCount.get(l.source) || 0) + 1);
+    linkCount.set(l.target, (linkCount.get(l.target) || 0) + 1);
+  });
+  const linkStrength = links.map((l) => 1 / Math.min(linkCount.get(l.source), linkCount.get(l.target)));
+  const linkBias = links.map((l) => linkCount.get(l.source) / (linkCount.get(l.source) + linkCount.get(l.target)));
+  const linkDistance = links.map((l) => 22 + l.source.r + l.target.r);
+
+  let alpha = 1;
+  const alphaMin = 0.002;
+  const alphaDecay = 1 - Math.pow(alphaMin, 1 / 320);
+
+  // What the simulation moves: normally every connected object. With a kind
+  // centred, only what is on screen, drawn into rings: that kind in the
+  // middle, what links to it around it, everything else outside.
+  let simNodes = connected;
+  let simLinks = links.map((_, i) => i);
+  let centreKind = null;
+  const touching = new Set();
+  const rings = { middle: 0, outer: 0 };
+  const grow = (n) => (centreKind !== null && n.kind === centreKind ? 1.35 : 1);
+
+  function tick() {
+    alpha += (0 - alpha) * alphaDecay;
+    for (const i of simLinks) {
+      const l = links[i], s = l.source, t = l.target;
+      let x = t.x + t.vx - s.x - s.vx || (rand() - 0.5) * 1e-6;
+      let y = t.y + t.vy - s.y - s.vy || (rand() - 0.5) * 1e-6;
+      let len = Math.sqrt(x * x + y * y);
+      len = (len - linkDistance[i]) / len * alpha * linkStrength[i];
+      x *= len; y *= len;
+      const b = linkBias[i];
+      t.vx -= x * b; t.vy -= y * b;
+      s.vx += x * (1 - b); s.vy += y * (1 - b);
+    }
+    const n = simNodes.length;
+    for (let i = 0; i < n; i++) {
+      const a = simNodes[i];
+      for (let j = i + 1; j < n; j++) {
+        const b = simNodes[j];
+        let dx = b.x - a.x, dy = b.y - a.y;
+        let d2 = dx * dx + dy * dy;
+        if (d2 === 0) { dx = (rand() - 0.5) * 1e-3; dy = (rand() - 0.5) * 1e-3; d2 = dx * dx + dy * dy; }
+        if (d2 < 160000) {
+          const w = (-70 * alpha) / Math.max(d2, 25);
+          a.vx += dx * w; a.vy += dy * w;
+          b.vx -= dx * w; b.vy -= dy * w;
+        }
+        const min = a.r * grow(a) + b.r * grow(b) + 2.5;
+        if (d2 < min * min) {
+          const d = Math.sqrt(d2) || 1e-3;
+          const push = ((min - d) / d) * 0.35;
+          a.vx -= dx * push; a.vy -= dy * push;
+          b.vx += dx * push; b.vy += dy * push;
+        }
+      }
+    }
+    for (const node of simNodes) {
+      if (centreKind !== null) {
+        // A radial force, as in d3: each node is drawn toward its ring.
+        const target = node.kind === centreKind ? 0 : touching.has(node) ? rings.middle : rings.outer;
+        const d = Math.hypot(node.x, node.y) || 1e-6;
+        const k = ((target - d) / d) * (node.kind === centreKind ? 0.12 : 0.2) * alpha;
+        node.vx += node.x * k; node.vy += node.y * k;
+      } else {
+        node.vx -= node.x * 0.03 * alpha;
+        node.vy -= node.y * 0.03 * alpha;
+      }
+      if (node.fx !== null) { node.x = node.fx; node.y = node.fy; node.vx = 0; node.vy = 0; }
+      else { node.vx *= 0.6; node.vy *= 0.6; node.x += node.vx; node.y += node.vy; }
+    }
+  }
+  for (let k = 0; k < 320; k++) tick();
+
+  // Unlinked objects wait on a ring outside the graph, grouped by kind.
+  function placeLoners() {
+    let reach = 0;
+    connected.forEach((n) => { reach = Math.max(reach, Math.hypot(n.x, n.y) + n.r); });
+    const ringRadius = reach + 70;
+    loners.forEach((n, i) => {
+      const angle = -Math.PI / 2 + (i / loners.length) * Math.PI * 2;
+      n.x = ringRadius * Math.cos(angle); n.y = ringRadius * Math.sin(angle);
+    });
+  }
+  placeLoners();
+
+  // ---------- rendering ----------
+  const svg = $("graph"), viewport = $("viewport"), stage = $("stage");
+  const edgeLayer = $("edges"), nodeLayer = $("nodes"), edgeLabelLayer = $("edge-labels"), labelLayer = $("labels");
+
+  links.forEach((l) => {
+    l.el = svgEl("line", { class: "edge", "vector-effect": "non-scaling-stroke" });
+    edgeLayer.appendChild(l.el);
+  });
+  nodes.forEach((n) => {
+    n.el = svgEl("g", { class: "node" });
+    n.el.appendChild(svgEl("path", { d: shapePath(n.shape, n.r), class: n.group, "vector-effect": "non-scaling-stroke" }));
+    nodeLayer.appendChild(n.el);
+  });
+
+  const HUB_LABELS = new Set(connected.slice(0, 12));
+  let view = { k: 1, x: 0, y: 0 };
+  let hidden = new Set();
+  let showLoners = false;
+  let hovered = null, selected = null, matches = null;
+
+  const visible = (n) => !hidden.has(n.kind) && (n.deg > 0 || showLoners);
+
+  function positions() {
+    for (const l of links) {
+      l.el.setAttribute("x1", l.source.x); l.el.setAttribute("y1", l.source.y);
+      l.el.setAttribute("x2", l.target.x); l.el.setAttribute("y2", l.target.y);
+    }
+    for (const n of nodes) n.el.setAttribute("transform", `translate(${n.x},${n.y})`);
+    drawLabels();
+  }
+  function applyView() {
+    viewport.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+    drawLabels();
+  }
+  function applyVisibility() {
+    for (const n of nodes) n.el.style.display = visible(n) ? "" : "none";
+    for (const l of links) l.el.style.display = visible(l.source) && visible(l.target) ? "" : "none";
+    applyFocus();
+  }
+
+  function focusSet() {
+    const focus = selected || hovered;
+    if (!focus) return null;
+    const set = new Set([focus]);
+    incident.get(focus).forEach((l) => { set.add(l.source); set.add(l.target); });
+    return set;
+  }
+  function applyFocus() {
+    const focus = selected || hovered;
+    const set = focusSet();
+    // A centred kind shapes the picture whenever nothing more specific is
+    // asked for: its objects and what they touch stay lit, the rest recedes.
+    const centred = !set && !matches && centreKind !== null;
+    const core = (n) => n.kind === centreKind;
+    for (const n of nodes) {
+      const dim = set ? !set.has(n) : matches ? !matches.has(n) : false;
+      n.el.classList.toggle("dim", dim);
+      n.el.classList.toggle("far", centred && !core(n) && !touching.has(n));
+      n.el.classList.toggle("selected", n === selected);
+      n.el.classList.toggle("match", !set && !!matches && matches.has(n));
+    }
+    for (const l of links) {
+      const on = focus && (l.source === focus || l.target === focus);
+      const spoke = centred && (core(l.source) || core(l.target));
+      l.el.classList.toggle("hi", !!on);
+      l.el.classList.toggle("spoke", spoke);
+      l.el.classList.toggle("dim", (!!focus && !on) || (!focus && !!matches && !(matches.has(l.source) && matches.has(l.target))) || (centred && !spoke));
+    }
+    drawLabels();
+  }
+
+  // Labels are placed greedily in screen space, most important first, and a
+  // label that would collide with one already placed is skipped: the tooltip,
+  // the panel and the table carry every name the canvas has no room for.
+  function drawLabels() {
+    labelLayer.replaceChildren();
+    edgeLabelLayer.replaceChildren();
+    const W = stage.clientWidth, H = stage.clientHeight;
+    const placed = [];
+    const screen = (x, y) => ({ x: x * view.k + view.x, y: y * view.k + view.y });
+    const free = (b) => b.x0 >= 4 && b.y0 >= 4 && b.x1 <= W - 4 && b.y1 <= H - 4
+      && !placed.some((p) => b.x0 < p.x1 && b.x1 > p.x0 && b.y0 < p.y1 && b.y1 > p.y0);
+    const focus = selected || hovered;
+
+    function nameLabel(n, px, cls, max, always = false) {
+      let text = clip(n.name, max);
+      const s = screen(n.x, n.y), r = n.r * grow(n) * view.k;
+      const width = (t) => t.length * px * 0.56 + 6, h = px * 1.3;
+      const right = (w) => ({ x0: s.x + r + 3, x1: s.x + r + 3 + w, y0: s.y - h / 2, y1: s.y + h / 2, tx: s.x + r + 4, ty: n.y, anchor: "start" });
+      const left = (w) => ({ x0: s.x - r - 3 - w, x1: s.x - r - 3, y0: s.y - h / 2, y1: s.y + h / 2, tx: s.x - r - 4, ty: n.y, anchor: "end" });
+      let box = [right(width(text)), left(width(text))].find(free) || null;
+      if (!box && always) {
+        // The focus always keeps its name: centred under the node, shortened to fit.
+        text = clip(n.name, Math.max(8, Math.floor((W - 16) / (px * 0.56))));
+        const w = width(text), below = s.y + r + h * 0.8;
+        box = { x0: s.x - w / 2, x1: s.x + w / 2, y0: below - h / 2, y1: below + h / 2, tx: s.x, ty: n.y + (r + h * 0.8) / view.k, anchor: "middle" };
+      }
+      if (!box) return;
+      placed.push(box);
+      const node = svgEl("text", {
+        class: cls, x: (box.tx - view.x) / view.k, y: box.ty, "text-anchor": box.anchor,
+        "dominant-baseline": "middle", "font-size": px / view.k, "stroke-width": 3.5 / view.k,
+      });
+      node.textContent = text;
+      labelLayer.appendChild(node);
+    }
+    function edgeLabel(l, px) {
+      const mx = (l.source.x + l.target.x) / 2, my = (l.source.y + l.target.y) / 2;
+      const s = screen(mx, my), w = l.w.length * px * 0.62 + 6, h = px * 1.3;
+      const box = { x0: s.x - w / 2, x1: s.x + w / 2, y0: s.y - h / 2, y1: s.y + h / 2 };
+      if (!free(box)) return;
+      placed.push(box);
+      const node = svgEl("text", {
+        class: "edge-label", x: mx, y: my, "text-anchor": "middle", "dominant-baseline": "middle",
+        "font-size": px / view.k, "stroke-width": 3.5 / view.k,
+      });
+      node.textContent = l.w;
+      edgeLabelLayer.appendChild(node);
+    }
+
+    if (focus) {
+      nameLabel(focus, 13, "label", 48, true);
+      const edges = incident.get(focus).filter((l) => visible(l.source) && visible(l.target));
+      const others = edges.map((l) => (l.source === focus ? l.target : l.source)).sort((a, b) => b.deg - a.deg);
+      others.slice(0, 40).forEach((n) => nameLabel(n, 11.5, HUB_LABELS.has(n) ? "label" : "label minor", 34));
+      edges.sort((a, b) => Math.max(b.source.deg, b.target.deg) - Math.max(a.source.deg, a.target.deg))
+        .slice(0, 40).forEach((l) => edgeLabel(l, 10.5));
+    } else if (matches) {
+      [...matches].filter(visible).sort((a, b) => b.deg - a.deg).slice(0, 40).forEach((n) => nameLabel(n, 12, "label", 42));
+    } else if (centreKind !== null) {
+      const byDegree = (a, b) => b.deg - a.deg;
+      simNodes.filter((n) => n.kind === centreKind).sort(byDegree).forEach((n) => nameLabel(n, 12.5, "label", 40));
+      [...touching].filter(visible).sort(byDegree).slice(0, 30).forEach((n) => nameLabel(n, 11.5, "label minor", 34));
+    } else {
+      connected.filter(visible).slice(0, 30).forEach((n) => nameLabel(n, 12, "label", 42));
+    }
+  }
+
+  function bounds(list) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of list) {
+      const r = n.r * grow(n);
+      x0 = Math.min(x0, n.x - r); y0 = Math.min(y0, n.y - r);
+      x1 = Math.max(x1, n.x + r); y1 = Math.max(y1, n.y + r);
+    }
+    return { x0, y0, x1, y1 };
+  }
+  // With a kind centred, frame what is lit; what recedes may leave the frame.
+  function framed() {
+    const lit = (n) => centreKind === null || n.kind === centreKind || touching.has(n);
+    const list = nodes.filter((n) => visible(n) && lit(n));
+    return list.length ? list : nodes.filter(visible);
+  }
+  function fit() {
+    const list = framed();
+    if (!list.length) return;
+    const b = bounds(list);
+    const w = stage.clientWidth, h = stage.clientHeight, pad = 40;
+    const k = Math.min((w - pad * 2) / (b.x1 - b.x0 || 1), (h - pad * 2) / (b.y1 - b.y0 || 1), 3);
+    view = { k, x: w / 2 - ((b.x0 + b.x1) / 2) * k, y: h / 2 - ((b.y0 + b.y1) / 2) * k };
+    applyView();
+  }
+  function zoomBy(factor, px = stage.clientWidth / 2, py = stage.clientHeight / 2) {
+    const k = Math.min(8, Math.max(0.15, view.k * factor));
+    view.x = px - (px - view.x) * (k / view.k);
+    view.y = py - (py - view.y) * (k / view.k);
+    view.k = k;
+    applyView();
+  }
+  // Selecting centres the node and zooms so its typical neighbour sits well
+  // inside the frame; a far outlier may leave it, its edge still pointing there.
+  function centerOn(node) {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const distances = incident.get(node)
+      .map((l) => (l.source === node ? l.target : l.source)).filter(visible)
+      .map((n) => Math.hypot(n.x - node.x, n.y - node.y) + n.r).sort((a, b) => a - b);
+    const typical = distances.length ? distances[Math.floor((distances.length - 1) * 0.75)] : 60;
+    const k = Math.max(0.35, Math.min(2, (Math.min(w, h) / 2 - 90) / Math.max(typical, 30)));
+    animateView({ k, x: w / 2 - node.x * k, y: h / 2 - node.y * k });
+  }
+  function animateView(end) {
+    const start = { ...view }, t0 = performance.now();
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function step(t) {
+      const p = reduce ? 1 : Math.min(1, (t - t0) / 380), e = 1 - Math.pow(1 - p, 3);
+      view = { k: start.k + (end.k - start.k) * e, x: start.x + (end.x - start.x) * e, y: start.y + (end.y - start.y) * e };
+      applyView();
+      if (p < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+  function fitSmooth() {
+    const list = framed();
+    if (!list.length) return;
+    const b = bounds(list), w = stage.clientWidth, h = stage.clientHeight, pad = 40;
+    const k = Math.min((w - pad * 2) / (b.x1 - b.x0 || 1), (h - pad * 2) / (b.y1 - b.y0 || 1), 3);
+    animateView({ k, x: w / 2 - ((b.x0 + b.x1) / 2) * k, y: h / 2 - ((b.y0 + b.y1) / 2) * k });
+  }
+
+  // ---------- pointer: hover, pan, drag, pinch ----------
+  const tip = $("tip");
+  function toGraph(px, py) { return { x: (px - view.x) / view.k, y: (py - view.y) / view.k }; }
+  function localPoint(event) { const r = stage.getBoundingClientRect(); return { x: event.clientX - r.left, y: event.clientY - r.top }; }
+  function nearest(px, py) {
+    const g = toGraph(px, py);
+    let best = null, bestD = Infinity;
+    for (const n of nodes) {
+      if (!visible(n)) continue;
+      const d = Math.hypot(n.x - g.x, n.y - g.y) * view.k;
+      const reach = Math.max(14, n.r * grow(n) * view.k + 7);
+      if (d < reach && d < bestD) { best = n; bestD = d; }
+    }
+    return best;
+  }
+  function showTip(node, px, py) {
+    if (!node) { tip.hidden = true; return; }
+    const info = KIND[node.kind];
+    tip.replaceChildren();
+    tip.appendChild(el("strong", {}, node.name));
+    const row = el("div", { class: "row" });
+    const key = el("span", { class: "key" });
+    key.style.background = `var(--${node.group})`;
+    row.append(key, document.createTextNode(`${node.kind} · ${node.deg} relation${node.deg === 1 ? "" : "s"}`));
+    tip.appendChild(row);
+    tip.appendChild(el("div", { class: "ref" }, node.ref));
+    tip.hidden = false;
+    const w = stage.clientWidth, tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = px + 14, y = py + 14;
+    if (x + tw > w - 8) x = px - tw - 14;
+    if (y + th > stage.clientHeight - 8) y = py - th - 14;
+    tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${Math.max(8, y)}px`;
+  }
+
+  const pointers = new Map();
+  let gesture = null;
+  let animating = false;
+
+  function reheat() {
+    alpha = Math.max(alpha, 0.25);
+    if (animating) return;
+    animating = true;
+    const loop = () => {
+      tick(); positions();
+      if (alpha > 0.01 || gesture?.type === "drag") requestAnimationFrame(loop);
+      else animating = false;
+    };
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- centring a kind ----------
+  let savedLayout = null;
+  const reducedMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function computeRings() {
+    touching.clear();
+    for (const i of simLinks) {
+      const l = links[i];
+      if (l.source.kind === centreKind && l.target.kind !== centreKind) touching.add(l.target);
+      if (l.target.kind === centreKind && l.source.kind !== centreKind) touching.add(l.source);
+    }
+    const area = (list, pad) => list.reduce((sum, n) => sum + Math.pow(2 * n.r * grow(n) + pad, 2), 0);
+    const inner = Math.max(40, Math.sqrt(area(simNodes.filter((n) => n.kind === centreKind), 12) / Math.PI));
+    rings.middle = inner + 120 + Math.sqrt(area([...touching], 10) / Math.PI) * 0.35;
+    rings.outer = rings.middle + 170;
+  }
+  function setSim() {
+    if (centreKind !== null) {
+      simNodes = connected.filter(visible);
+      const onScreen = new Set(simNodes);
+      simLinks = links.map((l, i) => (onScreen.has(l.source) && onScreen.has(l.target) ? i : -1)).filter((i) => i >= 0);
+      computeRings();
+    } else {
+      simNodes = connected;
+      simLinks = links.map((_, i) => i);
+      touching.clear();
+    }
+    for (const n of nodes) n.el.firstChild.setAttribute("transform", grow(n) === 1 ? "" : `scale(${grow(n)})`);
+  }
+  // Let the new layout play out on screen, then frame it.
+  function settle() {
+    alpha = 1;
+    const done = () => { placeLoners(); positions(); fitSmooth(); };
+    if (reducedMotion()) { for (let k = 0; k < 320; k++) tick(); positions(); done(); return; }
+    let frames = 0;
+    const step = () => {
+      for (let k = 0; k < 3; k++) tick();
+      positions();
+      if (alpha > 0.004 && ++frames < 200) requestAnimationFrame(step); else done();
+    };
+    requestAnimationFrame(step);
+  }
+  function updateCentreNote() {
+    const note = $("centre-note");
+    note.hidden = centreKind === null;
+    if (centreKind !== null) note.textContent = `Centred on ${KIND[centreKind].label}  ✕`;
+    note.setAttribute("aria-label", centreKind === null ? "" : `Stop centring ${KIND[centreKind].label}`);
+  }
+  function centre(kind) {
+    if (centreKind === null) savedLayout = connected.map((n) => [n, n.x, n.y]);
+    centreKind = kind;
+    hidden.delete(kind);
+    selected = null; hovered = null;
+    syncChips(); applyVisibility(); setSim(); applyFocus(); renderPanel(); updateCentreNote();
+    settle();
+  }
+  function uncentre() {
+    if (centreKind === null) return;
+    centreKind = null;
+    setSim(); syncChips(); applyFocus(); updateCentreNote();
+    // Glide back to the layout from before centring, not a new one.
+    const from = connected.map((n) => [n, n.x, n.y]);
+    const back = new Map((savedLayout || []).map(([n, x, y]) => [n, [x, y]]));
+    savedLayout = null;
+    const t0 = performance.now();
+    const step = (t) => {
+      const p = reducedMotion() ? 1 : Math.min(1, (t - t0) / 700), e = 1 - Math.pow(1 - p, 3);
+      for (const [n, x, y] of from) {
+        const [bx, by] = back.get(n) || [x, y];
+        n.x = x + (bx - x) * e; n.y = y + (by - y) * e; n.vx = 0; n.vy = 0;
+      }
+      positions();
+      if (p < 1) requestAnimationFrame(step); else { placeLoners(); positions(); fitSmooth(); }
+    };
+    requestAnimationFrame(step);
+  }
+  const toggleCentre = (kind) => (centreKind === kind ? uncentre() : centre(kind));
+
+  stage.addEventListener("pointerdown", (event) => {
+    stage.setPointerCapture(event.pointerId);
+    const p = localPoint(event);
+    pointers.set(event.pointerId, p);
+    tip.hidden = true;
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      gesture = { type: "pinch", dist: Math.hypot(a.x - b.x, a.y - b.y), k: view.k };
+      return;
+    }
+    const node = nearest(p.x, p.y);
+    if (node && node.deg > 0) {
+      gesture = { type: "drag", node, start: p, moved: false };
+      node.fx = node.x; node.fy = node.y;
+    } else {
+      gesture = { type: "pan", start: p, view: { ...view }, moved: false, node };
+      stage.classList.add("panning");
+    }
+  });
+  stage.addEventListener("pointermove", (event) => {
+    const p = localPoint(event);
+    if (pointers.has(event.pointerId)) pointers.set(event.pointerId, p);
+    if (!gesture) {
+      const node = nearest(p.x, p.y);
+      if (node !== hovered) { hovered = node; applyFocus(); }
+      showTip(node, p.x, p.y);
+      stage.style.cursor = node ? "pointer" : "";
+      return;
+    }
+    if (gesture.type === "pinch" && pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(a.x - b.x, a.y - b.y);
+      zoomBy((gesture.k * (dist / gesture.dist)) / view.k, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      return;
+    }
+    const dx = p.x - gesture.start.x, dy = p.y - gesture.start.y;
+    if (Math.hypot(dx, dy) > 3) gesture.moved = true;
+    if (gesture.type === "pan" && gesture.moved) {
+      view.x = gesture.view.x + dx; view.y = gesture.view.y + dy; applyView();
+    } else if (gesture.type === "drag" && gesture.moved) {
+      const g = toGraph(p.x, p.y);
+      gesture.node.fx = g.x; gesture.node.fy = g.y;
+      reheat();
+    }
+  });
+  function endPointer(event) {
+    pointers.delete(event.pointerId);
+    if (!gesture) return;
+    if (gesture.type === "pinch") { if (pointers.size < 2) gesture = null; return; }
+    const g = gesture;
+    gesture = null;
+    stage.classList.remove("panning");
+    const clicked = g.type === "drag" ? g.node : g.node || null;
+    if (g.type === "drag") { g.node.fx = null; g.node.fy = null; }
+    if (!g.moved) {
+      const next = clicked && clicked === selected ? null : clicked;
+      select(next);
+      if (next) centerOn(next);
+    }
+  }
+  stage.addEventListener("pointerup", endPointer);
+  stage.addEventListener("pointercancel", endPointer);
+  stage.addEventListener("pointerleave", () => {
+    if (!gesture) { hovered = null; tip.hidden = true; applyFocus(); }
+  });
+  stage.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const p = localPoint(event);
+    zoomBy(Math.exp(-event.deltaY * 0.0016), p.x, p.y);
+  }, { passive: false });
+
+  $("zoom-in").addEventListener("click", () => zoomBy(1.35));
+  $("zoom-out").addEventListener("click", () => zoomBy(1 / 1.35));
+  $("zoom-fit").addEventListener("click", fit);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (selected) select(null); else uncentre();
+  });
+
+  // ---------- panel ----------
+  const panel = $("panel");
+  function nodeButton(node) {
+    const button = el("button", { type: "button", class: "link-btn" });
+    button.append(swatch(node.kind, 12), el("span", {}, node.name));
+    button.addEventListener("click", () => { select(node); centerOn(node); });
+    return button;
+  }
+  function renderPanel() {
+    panel.replaceChildren();
+    if (!selected) {
+      const intro = el("div", { class: "intro" });
+      intro.appendChild(el("p", {}, "Each dot is one object in the workspace; each line is a relation someone asserted on purpose."));
+      const p2 = el("p");
+      p2.append(el("strong", {}, "Click a node"), document.createTextNode(" to list its relations the way ws show prints them, then click any of them to walk the graph."));
+      intro.appendChild(p2);
+      intro.appendChild(el("p", { class: "sub" }, "Most connected"));
+      const picks = el("div", { class: "picks" });
+      connected.slice(0, 5).forEach((node) => picks.appendChild(nodeButton(node)));
+      intro.appendChild(picks);
+      const legend = el("p", { class: "sub" }, "Families");
+      intro.appendChild(legend);
+      for (const [group, name] of Object.entries(GROUPS)) {
+        const line = el("div", { class: "kind-line" });
+        const box = el("span");
+        box.style.cssText = `width:10px;height:10px;border-radius:3px;background:var(--${group});display:inline-block`;
+        const kinds = KINDS.filter((k) => k.group === group).map((k) => k.label).join(", ");
+        line.append(box, document.createTextNode(`${name}: ${kinds}`));
+        line.style.marginBottom = "4px";
+        intro.appendChild(line);
+      }
+      panel.appendChild(intro);
+      return;
+    }
+    const node = selected;
+    const kindLine = el("div", { class: "kind-line" });
+    kindLine.append(swatch(node.kind, 13), document.createTextNode(`${node.kind} · ${GROUPS[node.group]}`));
+    panel.append(kindLine, el("h3", {}, node.name), el("div", { class: "ref" }, node.ref));
+    const rels = incident.get(node).map((l) => {
+      const out = l.source === node;
+      return { out, word: l.w, other: out ? l.target : l.source };
+    }).sort((a, b) => (a.out === b.out ? 0 : a.out ? -1 : 1) || a.word.localeCompare(b.word) || a.other.name.localeCompare(b.other.name));
+    panel.appendChild(el("p", { class: "sub" }, rels.length ? `relations: ${rels.length}` : "relations: none"));
+    const list = el("ul", { class: "rels" });
+    for (const rel of rels) {
+      const li = el("li");
+      li.appendChild(el("span", { class: "arrow" }, rel.out ? `--${rel.word}-->` : `<--${rel.word}--`));
+      li.appendChild(nodeButton(rel.other));
+      list.appendChild(li);
+    }
+    panel.appendChild(list);
+    const clear = el("button", { type: "button", class: "ghost" }, "Clear selection");
+    clear.style.marginTop = "12px";
+    clear.addEventListener("click", () => select(null));
+    panel.appendChild(clear);
+  }
+  function select(node) {
+    selected = node;
+    if (node && !visible(node)) {
+      hidden.delete(node.kind);
+      if (node.deg === 0) { showLoners = true; $("loners").checked = true; }
+      syncChips(); applyVisibility();
+    }
+    applyFocus();
+    renderPanel();
+  }
+
+  // ---------- controls ----------
+  const chips = $("chips");
+  const chipButtons = new Map();
+  for (const [group, name] of Object.entries(GROUPS)) {
+    const wrap = el("div", { class: "chip-group" });
+    const label = el("span", { class: "group-label" });
+    const box = el("i");
+    box.style.background = `var(--${group})`;
+    label.append(box, document.createTextNode(name));
+    wrap.appendChild(label);
+    for (const info of KINDS.filter((k) => k.group === group)) {
+      const button = el("button", { type: "button", class: "chip", "aria-pressed": "true" });
+      button.append(swatch(info.kind, 13), el("span", {}, info.label), el("span", { class: "count" }, String(kindCount(info.kind))));
+      button.title = "Click to show or hide · double-click (or Shift+Enter) to put this kind at the centre";
+      const toggle = () => {
+        if (hidden.has(info.kind)) hidden.delete(info.kind); else hidden.add(info.kind);
+        if (selected && hidden.has(selected.kind)) selected = null;
+        syncChips(); applyVisibility(); renderPanel();
+        if (centreKind === info.kind && hidden.has(info.kind)) uncentre();
+        else if (centreKind !== null) { setSim(); applyFocus(); settle(); }
+      };
+      // A double-click also fires two clicks; wait briefly so it doesn't hide
+      // and re-show the kind first. Keyboard clicks (detail 0) act at once.
+      let pending = null;
+      button.addEventListener("click", (event) => {
+        if (event.detail > 1) return;
+        if (event.detail === 0) { toggle(); return; }
+        clearTimeout(pending);
+        pending = setTimeout(toggle, 230);
+      });
+      button.addEventListener("dblclick", () => { clearTimeout(pending); toggleCentre(info.kind); });
+      button.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && event.shiftKey) { event.preventDefault(); toggleCentre(info.kind); }
+      });
+      chipButtons.set(info.kind, button);
+      wrap.appendChild(button);
+    }
+    chips.appendChild(wrap);
+  }
+  function syncChips() {
+    for (const [kind, button] of chipButtons) {
+      button.setAttribute("aria-pressed", String(!hidden.has(kind)));
+      button.dataset.centre = String(kind === centreKind);
+    }
+  }
+  $("centre-note").addEventListener("click", uncentre);
+
+  $("loners-label").textContent = `Unlinked objects (${loners.length})`;
+  $("loners").addEventListener("change", (event) => {
+    showLoners = event.target.checked;
+    if (!showLoners && selected && selected.deg === 0) selected = null;
+    applyVisibility(); renderPanel(); fit();
+  });
+
+  const search = $("search"), found = $("found");
+  function runSearch() {
+    const words = search.value.toLocaleLowerCase().split(/\s+/).filter(Boolean);
+    const content = words.filter((w) => !FILLER.has(w));
+    const terms = content.length ? content : words;
+    if (!terms.length) { matches = null; found.textContent = ""; applyFocus(); return; }
+    matches = new Set(nodes.filter((n) => visible(n) && terms.every((t) => `${n.name} ${n.ref}`.toLocaleLowerCase().includes(t))));
+    found.textContent = matches.size ? `${matches.size} found` : "none";
+    if (selected && !matches.has(selected)) selected = null;
+    hovered = null;
+    applyFocus(); renderPanel();
+  }
+  search.addEventListener("input", runSearch);
+  search.addEventListener("keydown", (event) => {
+    if (event.key === "Enter" && matches && matches.size) {
+      const best = [...matches].sort((a, b) => b.deg - a.deg)[0];
+      select(best); centerOn(best);
+    }
+  });
+
+  const graphView = $("graph-view"), tableView = $("table-view");
+  function setView(which) {
+    const table = which === "table";
+    graphView.hidden = table; tableView.hidden = !table;
+    $("view-graph").setAttribute("aria-pressed", String(!table));
+    $("view-table").setAttribute("aria-pressed", String(table));
+    $("zoom").style.visibility = table ? "hidden" : "";
+    if (!table) fit();
+  }
+  $("view-graph").addEventListener("click", () => setView("graph"));
+  $("view-table").addEventListener("click", () => setView("table"));
+
+  // ---------- table view ----------
+  function table(headers, rows) {
+    const scroll = el("div", { class: "table-scroll" });
+    const t = el("table");
+    const head = el("tr");
+    headers.forEach(([text, cls]) => head.appendChild(el("th", cls ? { class: cls } : {}, text)));
+    const thead = el("thead"); thead.appendChild(head); t.appendChild(thead);
+    const body = el("tbody");
+    rows.forEach((cells) => {
+      const tr = el("tr");
+      cells.forEach(([content, cls]) => {
+        const td = el("td", cls ? { class: cls } : {});
+        if (content instanceof Node) td.appendChild(content); else td.textContent = content;
+        tr.appendChild(td);
+      });
+      body.appendChild(tr);
+    });
+    t.appendChild(body); scroll.appendChild(t);
+    return scroll;
+  }
+  function nameCell(node) {
+    const span = el("span");
+    span.style.cssText = "display:inline-flex;gap:7px;align-items:baseline";
+    span.append(swatch(node.kind, 11), el("span", {}, node.name));
+    return span;
+  }
+  function buildTables() {
+    const top = connected.slice(0, 25);
+    const a = el("div");
+    a.appendChild(el("h3", {}, "Most connected"));
+    a.appendChild(table([["Object"], ["Kind"], ["REF"], ["Relations", "num"]],
+      top.map((n) => [[nameCell(n)], [n.kind], [n.ref, "ref"], [String(n.deg), "num"]])));
+    const b = el("div");
+    b.appendChild(el("h3", {}, "Relation words, as ws relations lists them"));
+    b.appendChild(table([["Word"], ["Edges", "num"], ["Connects (subject → object)"]],
+      [...DATA.vocab].sort((x, y) => y.n - x.n || x.w.localeCompare(y.w))
+        .map((v) => [[v.w, "ref"], [String(v.n), "num"], [v.pairs.map(([pair, count]) => (v.pairs.length > 1 ? `${pair} (${count})` : pair)).join(", ")]])));
+    const c = el("details");
+    c.appendChild(el("summary", {}, `Every object (${fmt(nodes.length)})`));
+    const all = el("div", { class: "all-objects" });
+    all.appendChild(table([["Object"], ["Kind"], ["REF"], ["Relations", "num"]],
+      [...nodes].sort((x, y) => x.kind.localeCompare(y.kind) || x.name.localeCompare(y.name))
+        .map((n) => [[nameCell(n)], [n.kind], [n.ref, "ref"], [String(n.deg), "num"]])));
+    c.appendChild(all);
+    tableView.append(a, b, c);
+  }
+  buildTables();
+
+  // ---------- state panels ----------
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function openInGraph(node) {
+    setView("graph");
+    $("graph-card").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    select(node);
+    setTimeout(() => centerOn(node), 350);
+  }
+  function objectButton(node) {
+    const button = el("button", { type: "button", class: "link-btn" });
+    button.append(swatch(node.kind, 12), el("span", {}, node.name));
+    button.addEventListener("click", () => openInGraph(node));
+    return button;
+  }
+  function stateRow(when, node, meta, late = false) {
+    const li = el("li", { class: "state-row" });
+    const cell = el("span", { class: late ? "when late" : "when" });
+    if (late) {
+      // Overdue carries an icon and the word, never colour alone.
+      cell.append(el("span", { class: "flag", "aria-hidden": "true" }, "!"), document.createTextNode("overdue"));
+      cell.appendChild(el("span", { class: "when-date" }, when));
+    } else {
+      cell.appendChild(document.createTextNode(when));
+    }
+    li.append(cell, objectButton(node), el("span", { class: "meta" }, meta));
+    return li;
+  }
+  function limited(list, items, max, render) {
+    items.slice(0, max).forEach((item) => list.appendChild(render(item)));
+    return items.length > max ? el("div", { class: "more" }, `and ${items.length - max} more`) : null;
+  }
+
+  // Due and coming up: dated open tasks (overdue first) and events not yet over.
+  const dueList = $("due-list");
+  const dated = [
+    ...DATA.tasks.filter((t) => t.due).map((t) => ({ date: t.due, node: nodes[t.i], task: t })),
+    ...DATA.events.filter((e) => dayDiff(e.end || e.start) >= 0).map((e) => ({ date: e.start, node: nodes[e.i], event: e })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
+  const moreDue = limited(dueList, dated, 12, (item) => {
+    const late = !!item.task && dayDiff(item.date) < 0;
+    const when = dayLabel(item.date);
+    const meta = item.task ? ["task", item.task.priority].filter(Boolean).join(" · ") : item.event.end && item.event.end !== item.event.start ? `event, until ${dayLabel(item.event.end)}` : "event";
+    return stateRow(when, item.node, meta, late);
+  });
+  if (moreDue) dueList.after(moreDue);
+  if (!dated.length) dueList.replaceWith(el("p", { class: "empty" }, "Nothing due, and no events ahead."));
+  const undated = DATA.tasks.filter((t) => !t.due).map((t) => ({ node: nodes[t.i], task: t }))
+    .sort((a, b) => (b.task.priority === "high") - (a.task.priority === "high") || a.node.name.localeCompare(b.node.name));
+  if (undated.length) {
+    const box = $("undated");
+    box.appendChild(el("p", { class: "subhead" }, `Open tasks without a date (${undated.length})`));
+    const list = el("ul", { class: "state-list" });
+    const more = limited(list, undated, 8, (item) => stateRow("no date", item.node, ["task", item.task.priority].filter(Boolean).join(" · ")));
+    box.appendChild(list);
+    if (more) box.appendChild(more);
+  }
+
+  // Recently added.
+  const recentList = $("recent-list");
+  const moreRecent = limited(recentList, DATA.recent, 12, (item) => stateRow(dayLabel(item.added), nodes[item.i], nodes[item.i].kind));
+  if (moreRecent) recentList.after(moreRecent);
+  if (!DATA.recent.length) recentList.replaceWith(el("p", { class: "empty" }, "No dated additions yet."));
+
+  // Projects by lifecycle status.
+  const groups = $("project-groups");
+  const order = ["active", "idea", "paused", "complete", "archived"];
+  const byStatus = new Map();
+  DATA.projects.forEach((p) => { if (!byStatus.has(p.status)) byStatus.set(p.status, []); byStatus.get(p.status).push(nodes[p.i]); });
+  [...byStatus.keys()].sort((a, b) => (order.indexOf(a) + 1 || 99) - (order.indexOf(b) + 1 || 99)).forEach((status) => {
+    const members = byStatus.get(status).sort((a, b) => a.name.localeCompare(b.name));
+    const group = el("div", { class: "group" });
+    group.appendChild(el("p", { class: "subhead" }, `${status} (${members.length})`));
+    const names = el("div", { class: "names" });
+    members.forEach((node) => names.appendChild(objectButton(node)));
+    group.appendChild(names);
+    groups.appendChild(group);
+  });
+  if (!DATA.projects.length) groups.appendChild(el("p", { class: "empty" }, "No projects yet."));
+
+  // Not yet connected: objects that no relation reaches.
+  const loose = $("loose");
+  if (!loners.length) {
+    loose.appendChild(el("p", { class: "empty" }, "Every object has at least one relation."));
+  } else {
+    loose.appendChild(el("p", {}, `${fmt(loners.length)} of ${fmt(T.objects)} objects have no relation yet. Connect them with ws relate, or see them in the graph.`));
+    const counts = el("div", { class: "kind-counts" });
+    KINDS.forEach((info) => {
+      const n = loners.filter((node) => node.kind === info.kind).length;
+      if (!n) return;
+      const item = el("span");
+      item.append(swatch(info.kind, 12), document.createTextNode(`${info.label} ${n}`));
+      counts.appendChild(item);
+    });
+    loose.appendChild(counts);
+    const show = el("button", { type: "button", class: "ghost" }, "Show them in the graph");
+    show.addEventListener("click", () => {
+      showLoners = true; $("loners").checked = true;
+      setView("graph"); applyVisibility(); fit();
+      $("graph-card").scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "start" });
+    });
+    loose.appendChild(show);
+  }
+
+  // ---------- start ----------
+  positions();
+  applyVisibility();
+  renderPanel();
+  fit();
+  let resizeTimer;
+  new ResizeObserver(() => { clearTimeout(resizeTimer); resizeTimer = setTimeout(fit, 120); }).observe(stage);
+})();
+</script>
+</body>
+</html>
