@@ -115,8 +115,11 @@ quotation or figure comes from.
 record. `info.yaml`, `summary.md` and `notes.md` hold the person's own reading
 context; read them too.
 
-When summarising, keep apart what the authors claim, what they actually
-demonstrate, and your own inference.
+When summarising or reviewing, read the methods, results, limitations,
+appendices, figures and tables, not only the abstract. Keep apart what the
+authors claim, what they actually demonstrate, your own inference, and what
+remains uncertain. To scope a topic prefer recent reviews; to go deep,
+primary sources. Cite every claim inline with its REF or URL.
 
 # Add
 
