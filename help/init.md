@@ -7,8 +7,8 @@ ws init --root ~/my-workspace
 
 Init creates the empty workspace, by default at `~/workspace`, and saves
 its location in `~/.config/ws/config.yaml` so that every later command
-finds it. It then runs a full `ws check` and points to the first example in
-GETTING-STARTED.md, which ships with ws.
+finds it. It then runs a full `ws check` and points to `ws setup`, which guides
+you through the first objects (`ws help setup`).
 
 Init imports no files, signs in to no service, creates no profile records
 and creates no git repository. It is safe to repeat: a second run creates

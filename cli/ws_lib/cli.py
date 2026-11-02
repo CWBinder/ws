@@ -22,6 +22,7 @@ from ws_lib import (
     indexing,
     literature,
     logistics,
+    owner,
     paths,
     profile_taxonomy,
     project,
@@ -29,6 +30,7 @@ from ws_lib import (
     resources,
     registry,
     relations,
+    setup,
 )
 
 
@@ -40,6 +42,7 @@ CONTRACTS = paths.CONTRACTS
 TOP_LEVEL_COMMANDS = [
     "--help",
     "init",
+    "setup",
     "rebuild",
     "check",
     "projects",
@@ -53,6 +56,7 @@ TOP_LEVEL_COMMANDS = [
     "unrelate",
     "show",
     "context",
+    "owner",
     "edit",
     "delete",
     "list",
@@ -643,6 +647,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     init.add_argument("--root", metavar="DIR", help="workspace directory; defaults to WS_WORKSPACE_ROOT, saved configuration, or ~/workspace")
     init.set_defaults(func=initialise.command_init)
+    setup.add_parser(sub)
 
     check = sub.add_parser(
         "check",
@@ -691,6 +696,7 @@ def build_parser() -> argparse.ArgumentParser:
     # create, and add take it as their first word.
     catalog.add_show_parser(sub)
     context.add_parser(sub)
+    owner.add_parser(sub)
     catalog.add_edit_parser(sub)
     catalog.add_delete_parser(sub)
     catalog.add_list_parser(sub)

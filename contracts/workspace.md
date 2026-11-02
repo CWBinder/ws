@@ -61,6 +61,17 @@ is imported, no account is authenticated, and no Git repository is created at th
 workspace root. A full check runs at the end; pre-existing inconsistencies are
 reported rather than silently repaired.
 
+## Setup
+
+`ws setup` prints the first unfinished step of getting started, from the texts
+shipped under `context/setup/`: the workspace, then the profile identity, then
+the owner person, then a closing page once all exist. It writes nothing and
+asks nothing, because the agent it addresses has no terminal to be asked on: it
+says what to explain, what to ask and which command to run, and the agent holds
+the conversation. Progress is derived from whether those three exist, never
+stored, so setup can stop and resume anywhere, including before `ws init`. Its
+texts tell the agent to ask for personal facts and never to infer them.
+
 ## Derived layers
 
 Four layers are derived from the canonical stores and the relations: each

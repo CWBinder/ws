@@ -68,12 +68,14 @@ GLOBAL_NAMESPACES = {
     item.name: item
     for item in (
         NamespaceSpec("init", "maintenance", "Initialise an empty workspace and remember its location.", "contracts/workspace.md"),
+        NamespaceSpec("setup", "maintenance", "The next step of setting up ws, written for an agent guiding a person.", "contracts/workspace.md"),
         NamespaceSpec("rebuild", "maintenance", "Regenerate the derived layers from canonical data.", "contracts/workspace.md"),
         NamespaceSpec("index", "maintenance", "Inspect the derived search index.", "contracts/search.md"),
         NamespaceSpec("wiki", "maintenance", "Older spelling of `ws rebuild wiki`.", "contracts/wiki.md"),
         NamespaceSpec("dashboard", "maintenance", "Older spelling of `ws rebuild dashboard`.", "contracts/dashboard.md"),
         NamespaceSpec("check", "maintenance", "Validate workspace state and contracts.", "contracts/check.md"),
         NamespaceSpec("id", "search", "Resolve and inspect canonical references.", "contracts/objects.md"),
+        NamespaceSpec("owner", "search", "Whose workspace this is: the owner's person record and profile identity.", "contracts/objects.md"),
         NamespaceSpec("context", "objects", "Brief a session on one place: where it is, what it is for, what has happened, how to work there.", "contracts/context.md"),
         NamespaceSpec("help", "discovery", "The manual: the overview, one kind, or one command.", "contracts/cli.md"),
         NamespaceSpec("capabilities", "discovery", "Which commands exist.", "contracts/cli.md"),
@@ -350,6 +352,8 @@ EFFECTS: dict[str, EffectSpec] = {
             "a project's README.md Purpose section and root LOG.md where .context/ has none",
         ),
     ),
+    "owner": EffectSpec(reads=("logistics/people/ records", "profile/items/ records")),
+    "setup": EffectSpec(reads=("whether the workspace, identity and owner exist", "context/setup/ texts shipped in the ws checkout")),
     "rebuild index": EffectSpec(
         reads=("all canonical domain data", "relations"),
         writes=("index/index.sqlite",),
@@ -1215,8 +1219,8 @@ def command_capabilities(args: argparse.Namespace) -> None:
 # the workspace holds" instead. `ws capabilities` remains the total view.
 OVERVIEW_CATEGORY_COMMANDS = {
     "objects": ("create", "add", "show", "edit", "delete", "relate", "context"),
-    "search": ("list", "search", "id"),
-    "maintenance": ("init", "rebuild", "check"),
+    "search": ("list", "search", "id", "owner"),
+    "maintenance": ("init", "setup", "rebuild", "check"),
     "discovery": ("help", "capabilities", "describe", "completions"),
 }
 

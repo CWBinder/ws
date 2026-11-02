@@ -237,23 +237,21 @@ class ContextTests(unittest.TestCase):
         self.assertIn(self.open_task.ref, text[text.index("\nUPCOMING"):])
         self.assertIn("project:thesis", text[:text.index("\nHOUSE RULES")])
 
-    def test_without_an_identity_no_owner_is_named(self) -> None:
+    def test_without_an_owner_no_line_is_printed(self) -> None:
         brief = self.brief(self.root)
         self.assertIsNone(brief["owner"])
         self.assertNotIn("[workspace · owner]", context.render(brief))
 
     def test_every_briefing_names_the_owner_after_the_workspace_layers(self) -> None:
         identity = catalog.create_object("profile", "Maria Example Schwarz", {"type": "identity"})[0]
-        brief = self.brief(self.root)
         self.assertEqual(
-            brief["owner"],
-            {"name": "Maria Example Schwarz", "identity": identity.ref, "person": ""},
+            self.brief(self.root)["owner"],
+            {"name": "Maria Example Schwarz", "person": "", "identity": identity.ref},
         )
-        relations.create(identity.ref, self.person.ref, "represents")
-        alpha = self.brief(self.alpha)
+        catalog.edit_object(self.person, {"owner": True})
         self.assertEqual(
-            alpha["owner"],
-            {"name": "Maria Schwarz", "identity": identity.ref, "person": self.person.ref},
+            self.brief(self.alpha)["owner"],
+            {"name": "Maria Schwarz", "person": self.person.ref, "identity": identity.ref},
         )
         (self.root / ".context").mkdir()
         (self.root / ".context" / "whereami.md").write_text("Root note.\n", encoding="utf-8")
@@ -263,7 +261,7 @@ class ContextTests(unittest.TestCase):
         owner_at = text.index("[workspace · owner]")
         self.assertLess(text.index("Root note."), owner_at)
         self.assertLess(owner_at, text.index("Store note."))
-        self.assertIn(f"Their contact details and connections: {self.person.ref}", text)
+        self.assertIn("This is the workspace of Maria Schwarz. For their details: ws owner", text)
 
     def test_outside_the_workspace_nothing_is_printed(self) -> None:
         os.chdir(self.root.parent)

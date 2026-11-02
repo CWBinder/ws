@@ -33,6 +33,10 @@ becomes `person:maria-schwarz`, and a second person of the same name gets
 `description`
 : One or two sentences on who they are to you.
 
+`owner`
+: Set on one person only: the one whose workspace this is, with
+  `--owner`. `ws help owner` says what it does.
+
 `status`
 : Optional, and absent means active. `merged` marks a duplicate folded into
   another record.

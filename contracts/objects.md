@@ -51,12 +51,27 @@ Beyond the core, a kind may define more — nothing else is universal:
   Kind-specific vocabularies (e.g. project statuses) live in
   `contracts/statuses.md`.
 - further classifiers — e.g. project `fields` and `subfields`.
-- facts — kind-specific truths: `emails`/`phones`/`preferred_name` (person),
+- facts — kind-specific truths: `emails`/`phones`/`preferred_name`/`owner` (person),
   `website` (organisation), `start`/`end`/`timezone`/`location` (event),
   `due`/`priority` (task), `path`/`path_root`/`classification` (document).
 - bookkeeping — `schema_version`, `created_at`, `updated_at`, and
   `provenance` entries recording which source asserted which fields, when
   (`--source`, `--observed-at`).
+
+## The owner
+
+The owner is the person whose workspace this is, held by two records with
+separate jobs: the person with `owner: true` holds private facts and the
+relations around them, and the profile identity holds public ones. Each is
+unique: a second owner is refused, `ws check` reports one written by hand, and
+merging an owner carries the label to the surviving record. Clearing the label
+removes the key, since absent means not the owner. The identity's type is its
+label (`contracts/career.md`).
+
+`ws owner` prints both and writes nothing. With neither it prints nothing and
+exits 0, so any caller may run it unconditionally; `--json` prints `null`.
+Nothing depends on an owner existing: every command works without one, and the
+briefing leaves out its line (`contracts/context.md`).
 
 ## Acting on objects
 

@@ -33,6 +33,12 @@ the name is not kept unless you pass it as `--alias`. When more than one
 person matches, ws names them all and writes nothing; pick the right REF
 and use `ws edit`.
 
+## The owner
+
+`--owner` labels this person as the one whose workspace this is. At most one
+person carries it; `ws help owner` explains what it does. `ws setup` normally
+makes this record.
+
 ## Record where the facts came from
 
 `--source` says who or what stated the facts: an email, a website, a

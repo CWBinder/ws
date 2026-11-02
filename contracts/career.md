@@ -42,8 +42,9 @@ volunteering
 
 The vocabulary is data, not a closed enum: extend it with
 the taxonomy writer or direct edits to `profile-taxonomy.yaml`. There may
-be at most one active `identity` object. Absent status means active; merged
-tombstones are excluded from generated CVs.
+be at most one active `identity` object, the public half of the workspace's
+owner (`contracts/objects.md`). Absent status means active; merged tombstones
+are excluded from generated CVs.
 
 Useful optional facts include:
 

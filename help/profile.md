@@ -50,10 +50,9 @@ the file may be reordered by hand. A unique prefix stands for a type, so
 `edu` means `education`.
 
 There is at most one identity record. A CV cannot be generated without it.
-It holds how you present yourself on a CV; facts about you, such as every
-address you use, live on your person record like anyone's. Relate the two
-once (`ws relate profile:<identity> to person:<you> as represents`) and
-every briefing names that person record as the owner (`ws help context`).
+It holds your public facts, the ones a CV may show. Private ones, such as
+every address you use, live on the person record labelled as the owner, and
+`ws owner` prints both (`ws help owner`).
 
 ## Fields of a record
 

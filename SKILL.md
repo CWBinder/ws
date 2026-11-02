@@ -31,7 +31,8 @@ full. This skill holds only what you need before your first command.
   and `dashboard.html` are rebuilt by `ws rebuild`; never edit them.
 - **Asked to remember something?** It goes into the workspace, never into
   notes of your own: a fact about someone, the person themselves included,
-  on their person record. `ws help values` lists where each kind goes.
+  on their person record (`ws owner` names theirs). `ws help values` lists
+  where each kind goes.
 - **Judgement calls**, such as what deserves to be an object, which
   relation words to use and when to delete, are in `ws help values`.
 
@@ -55,6 +56,7 @@ same way round.
 ws search [KIND] WORDS          find objects and get their REFs
 ws show REF ...                 record, content paths, every relation
 ws context [REF]                briefing: purpose, log, house rules
+ws owner                        whose workspace this is, with their details
 ws list KINDS [filters]         every object of one kind, e.g. ws list tasks --open
 ws create KIND ...              mint: project, subproject, task, resource, profile
 ws add KIND ...                 ingest: person, organisation, event,
@@ -92,6 +94,7 @@ the one you need and keep this one loaded:
 - **cv** ([skills/cv](skills/cv/SKILL.md)): making or updating a CV, or
   adding a publication, talk or other career fact to the profile.
 
-Setup is in [GETTING-STARTED.md](GETTING-STARTED.md). When changing ws
-itself, start with [AGENTS.md](AGENTS.md) and the
+First-time setup is `ws setup`: it prints each step for you to guide the
+person through. Installing is in [GETTING-STARTED.md](GETTING-STARTED.md).
+When changing ws itself, start with [AGENTS.md](AGENTS.md) and the
 [contracts](contracts/README.md).

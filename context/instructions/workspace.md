@@ -32,8 +32,8 @@ calls: `ws help values`.
 
 Remembering. Asked to remember something, file it where it belongs, never
 in notes of your own. A fact about someone goes on their person record, and
-that includes the person whose workspace this is: their record is the one
-WHERE YOU ARE names as the owner. Their CV identity changes only when their
+that includes the person whose workspace this is: `ws owner` names theirs.
+Their profile identity holds what a CV may show, and changes only when their
 CV should. Where each other kind of fact goes is in `ws help values`.
 
 Boundaries. Working in a project or resource, change only its folder. The

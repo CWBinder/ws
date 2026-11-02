@@ -45,9 +45,11 @@ own:
 
 ```text
 a fact about someone           their person record (ws edit person:<key>)
-a fact about the person        their own person record, the one the briefing
-  whose workspace this is      names as the owner
-what their CV should say       their profile (ws help profile)
+a private fact about the       the person record labelled owner
+  person whose workspace       (ws owner names it)
+  this is
+a public fact about them,      their profile identity, or another profile
+  what a CV should say         record (ws help profile)
 how to work in one place       that place's .context/instructions.md
 something to do or attend      a task or an event
 who is connected to what       a relation

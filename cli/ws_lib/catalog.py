@@ -155,6 +155,22 @@ def stored_objects(type_name: str | None = None) -> list[ObjectRef]:
     return found
 
 
+def is_owner(ref: ObjectRef) -> bool:
+    """Whether this is the person record labelled as the workspace's owner."""
+    data = ref.data or {}
+    return ref.type == "person" and data.get("owner") is True and str(data.get("status", "") or "") != "merged"
+
+
+def owner_person() -> ObjectRef | None:
+    return next(filter(is_owner, stored_objects("person")), None)
+
+
+def _refuse_second_owner(allowed_id: str = "") -> None:
+    current = owner_person()
+    if current is not None and current.id != allowed_id:
+        fail(f"{current.ref} is already the owner; first run: ws edit {current.ref} --no-owner")
+
+
 def public_stored_objects(type_name: str | None = None) -> list[ObjectRef]:
     """Stored objects visible at the CLI boundary; merged tombstones stay internal."""
     return [
@@ -474,6 +490,13 @@ def findings(type_names: set[str] | None = None, stale_after: int = 180) -> list
                 "severity": "error",
                 "message": "profile may contain at most one active identity object",
             })
+    if "person" in names:
+        owners = [obj for obj in stored_objects("person") if is_owner(obj)]
+        if len(owners) > 1:
+            results.append({
+                "severity": "error",
+                "message": "at most one person may be the owner: " + ", ".join(obj.ref for obj in owners),
+            })
     ids: dict[str, ObjectRef] = {}
     refs: dict[str, ObjectRef] = {}
     for obj in all_objects():
@@ -609,6 +632,8 @@ def create_object(type_name: str, title: str, values: dict, ensure: bool = False
         str(values.get("website", "")),
         str(values.get("type", "")) if type_name == "profile" else "",
     )
+    if values.get("owner"):
+        _refuse_second_owner(matches[0].id if ensure and len(matches) == 1 else "")
     if ensure and len(matches) == 1:
         existing = matches[0]
         existing_data = existing.data or {}
@@ -689,6 +714,9 @@ def edit_object(ref: ObjectRef, changes: dict, source: str = "", observed_at: st
             if current != data.get(target, []):
                 changed.append(target)
             data[target] = current
+        elif key == "owner" and value is False:
+            if data.pop("owner", None) is not None:
+                changed.append(key)
         elif value is not None and data.get(key) != value:
             data[key] = value
             changed.append(key)
@@ -725,6 +753,8 @@ def merge_objects(duplicate: ObjectRef, canonical: ObjectRef, dry_run: bool = Fa
     canonical_data = records.load_record(canonical.path)  # type: ignore[arg-type]
     aliases = [*canonical_data.get("aliases", []), duplicate.title, *duplicate_data.get("aliases", [])]
     canonical_data["aliases"] = list(dict.fromkeys(str(item) for item in aliases if item))
+    if duplicate_data.pop("owner", None):
+        canonical_data["owner"] = True
     canonical_data["updated_at"] = records.now()
     records.atomic_write(canonical.path, canonical_data)  # type: ignore[arg-type]
     duplicate_data["status"] = "merged"
@@ -884,6 +914,11 @@ def command_edit(args: argparse.Namespace) -> None:
         value = getattr(args, field, None)
         if value is not None:
             changes[field] = value
+    owner = getattr(args, "owner", None)
+    if owner is not None:
+        if owner:
+            _refuse_second_owner(ref.id)
+        changes["owner"] = owner
     for field in ["aliases", "emails", "phones", "tags"]:
         added = getattr(args, f"add_{field}", None)
         removed = getattr(args, f"remove_{field}", None)
@@ -1056,6 +1091,8 @@ def _values_from_args(args: argparse.Namespace) -> dict:
         value = getattr(args, source, None)
         if value not in (None, "", []):
             values[target] = value
+    if getattr(args, "owner", False):
+        values["owner"] = True
     # Used solely for idempotent person matching.
     emails = values.get("emails", [])
     if emails:
@@ -1086,6 +1123,7 @@ def _common_create(parser: argparse.ArgumentParser, type_name: str) -> None:
         parser.add_argument("--preferred-name")
         parser.add_argument("--email", action="append")
         parser.add_argument("--phone", action="append")
+        parser.add_argument("--owner", action="store_true", help="this person is the workspace's owner; at most one")
     elif type_name == "organisation":
         parser.add_argument("--type")
         parser.add_argument("--website")
@@ -1169,6 +1207,10 @@ def _edit_arguments(edit: argparse.ArgumentParser, type_name: str) -> None:
         edit.add_argument("--remove-email", dest="remove_emails", action="append")
         edit.add_argument("--add-phone", dest="add_phones", action="append")
         edit.add_argument("--remove-phone", dest="remove_phones", action="append")
+        edit.add_argument(
+            "--owner", action=argparse.BooleanOptionalAction, default=None,
+            help="label or clear this person as the workspace's owner; at most one",
+        )
     elif type_name == "organisation":
         edit.add_argument("--type")
         edit.add_argument("--website")

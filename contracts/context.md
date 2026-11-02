@@ -59,10 +59,9 @@ the most lasting first, so that a reader who stops early, or a harness that
 keeps only the start, loses the newest history rather than the rules:
 
 1. **WHERE YOU ARE**: the whereami layers from the root down. The workspace
-   level closes with its owner when a profile identity exists: the
-   identity's REF and the person record it `represents`, looked up from the
-   records each time a briefing is built; without an identity the line is
-   left out. For an object,
+   level closes with the owner's name and a pointer to `ws owner`, looked up
+   from the records each time a briefing is built (`contracts/objects.md`);
+   without an owner the line is left out. For an object,
    also its REF, folder and description, and its neighbours grouped by
    relation word and direction with what each means for the work. For a
    store, its contents. For the root, the active projects.
@@ -94,8 +93,8 @@ rewritten.
 
 `--json` prints the same content as one object with `briefing`, `subject`,
 `ref`, `store`, `folder`, `whereami`, `owner`, `instructions`, `purpose` and
-`log`; `owner` is `null` without an identity, else `name`, `identity` and
-`person` (empty when no `represents` edge leads to a person). Objects add `description`, `neighbours`, `tasks` and `serves`, stores
+`log`; `owner` is `null` without an owner, else `name`, `person` and `identity`
+(a REF is empty when that record does not exist). Objects add `description`, `neighbours`, `tasks` and `serves`, stores
 `listing`, the root `agenda`. Each `whereami` and `instructions` layer carries
 `level`, `source`, `shipped` and `text`. Fields may be added; existing
 meanings stay.

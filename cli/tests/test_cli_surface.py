@@ -405,7 +405,7 @@ class CliSurfaceTests(unittest.TestCase):
         self.assertEqual(
             set(maintenance),
             {
-                "ws init", "ws check", "ws index stat", "ws rebuild", "ws rebuild views",
+                "ws init", "ws setup", "ws check", "ws index stat", "ws rebuild", "ws rebuild views",
                 "ws rebuild index", "ws rebuild wiki", "ws rebuild dashboard",
             },
         )
