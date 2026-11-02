@@ -29,6 +29,9 @@ full. This skill holds only what you need before your first command.
   the request asks for that outcome; otherwise propose the command.
 - **Generated layers are read-only.** The `by-*` folders, `index/`, `wiki/`
   and `dashboard.html` are rebuilt by `ws rebuild`; never edit them.
+- **Asked to remember something?** It goes into the workspace, never into
+  notes of your own: a fact about someone, the person themselves included,
+  on their person record. `ws help values` lists where each kind goes.
 - **Judgement calls**, such as what deserves to be an object, which
   relation words to use and when to delete, are in `ws help values`.
 

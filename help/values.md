@@ -37,6 +37,25 @@ Pick classifier values from the kind's taxonomy, such as
 `ws documents taxonomy` or `ws literature taxonomy`. Never extend a
 taxonomy on your own: propose the new value and let the person approve it.
 
+## Remembering
+
+When the person asks you to remember something, it goes into the
+workspace, where every later session finds it, never into notes of your
+own:
+
+```text
+a fact about someone           their person record (ws edit person:<key>)
+a fact about the person        their own person record, the one the briefing
+  whose workspace this is      names as the owner
+what their CV should say       their profile (ws help profile)
+how to work in one place       that place's .context/instructions.md
+something to do or attend      a task or an event
+who is connected to what       a relation
+```
+
+A preference for one kind of work, such as how they write messages,
+belongs in the skill for that work, outside the workspace.
+
 ## Deleting
 
 `ws delete`, `--force`, and anything `ws describe` marks destructive run

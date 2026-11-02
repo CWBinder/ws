@@ -51,6 +51,18 @@ Each whereami and house-rules layer is labelled with where it comes from:
 `[workspace · ws]` is text that ships with ws,
 `[workspace · ~/workspace/.context/whereami.md]` is your own note.
 
+`[workspace · owner]` closes the workspace level in every briefing. It is
+computed, not written: ws looks up the profile identity
+(`ws help profile`) each time it builds a briefing, and names it with the
+person record it `represents`, where the owner's contact details and
+connections live. Relate the two once to make the person record appear:
+
+```bash
+ws relate profile:<identity> to person:<you> as represents
+```
+
+A workspace without an identity is briefed without the line.
+
 One aspect in full, without the rest, comes from `ws show`
 (`ws help show`):
 
@@ -168,7 +180,9 @@ WORKSPACE BRIEFING, run `ws context` before doing anything else.
 ## For programs
 
 `--json` prints the same content as one object with `briefing`, `subject`,
-`ref`, `store`, `folder`, `whereami`, `instructions`, `purpose` and `log`.
+`ref`, `store`, `folder`, `whereami`, `owner`, `instructions`, `purpose` and
+`log`. `owner` is `null` without an identity, else its `name`, `identity`
+and `person`.
 Objects add `description`, `neighbours`, `tasks` and `serves`, stores add
 `listing`, and the root adds `agenda`. Each whereami and instructions layer
 carries `level`, `source`, `shipped` and `text`.

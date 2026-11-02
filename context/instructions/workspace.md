@@ -30,6 +30,12 @@ propose the command. Assert only connections that are stated or evident,
 with --source and --observed-at, and never delete unless asked. Judgement
 calls: `ws help values`.
 
+Remembering. Asked to remember something, file it where it belongs, never
+in notes of your own. A fact about someone goes on their person record, and
+that includes the person whose workspace this is: their record is the one
+WHERE YOU ARE names as the owner. Their CV identity changes only when their
+CV should. Where each other kind of fact goes is in `ws help values`.
+
 Boundaries. Working in a project or resource, change only its folder. The
 others have their own agents: propose changes to them, or hand the work
 over, rather than editing their files from here.

@@ -260,6 +260,30 @@ def serves(obj: catalog.ObjectRef, by_ref: dict[str, catalog.ObjectRef]) -> list
         current = target
 
 
+def owner(objects: list[catalog.ObjectRef]) -> dict | None:
+    """Whose workspace this is: the profile identity and the person record it
+    `represents`, looked up afresh for every briefing. None without an
+    identity, so a workspace that has none is briefed without the line."""
+    identity = next(
+        (ref for ref in objects if ref.type == "profile" and (ref.data or {}).get("type") == "identity"),
+        None,
+    )
+    if identity is None:
+        return None
+    person = next(
+        (
+            edge for edge in relations.edges_of(identity.id, "represents")
+            if edge["direction"] == "out" and edge["other"].startswith("person:")
+        ),
+        None,
+    )
+    return {
+        "name": _clean(person["other_name"] if person and person["other_name"] else identity.title),
+        "identity": identity.ref,
+        "person": person["other"] if person else "",
+    }
+
+
 def _task_row(task: catalog.ObjectRef, today: dt.date) -> dict:
     data = task.data or {}
     due = dashboard._day(data.get("due"))
@@ -423,6 +447,7 @@ def build(place: Place, objects: list[catalog.ObjectRef]) -> dict:
         "store": place.store,
         "folder": _home_path(_folder(place)) if _folder(place) else "",
         "whereami": layers(place, "whereami"),
+        "owner": owner(objects),
         "instructions": layers(place, "instructions"),
         "purpose": purpose(place),
         "log": log(place),
@@ -464,9 +489,25 @@ def _task_line(row: dict) -> str:
     return f"    {row['ref']}  {row['name']}{suffix}"
 
 
+def owner_lines(found: dict | None) -> list[str]:
+    """The owner as one more workspace layer, computed from the records."""
+    if not found:
+        return []
+    lines = ["  [workspace · owner]", f"    This is the workspace of {found['name']}."]
+    if found["person"]:
+        lines.append(f"    Their contact details and connections: {found['person']}")
+    lines.append(f"    Their CV identity: {found['identity']}")
+    return lines
+
+
 def location_lines(brief: dict) -> list[str]:
     lines = ["WHERE YOU ARE"]
-    lines.extend(_layer_lines(brief["whereami"]))
+    rows = brief["whereami"]
+    # The owner closes the workspace level, before any store or object text.
+    split = next((i for i, row in enumerate(rows) if row["level"] != "workspace"), len(rows))
+    lines.extend(_layer_lines(rows[:split]))
+    lines.extend(owner_lines(brief.get("owner")))
+    lines.extend(_layer_lines(rows[split:]))
     if brief["briefing"] == "object":
         lines.append(f"  This: {brief['subject']}" + (f", {brief['folder']}" if brief["folder"] else ""))
         if brief.get("description"):
