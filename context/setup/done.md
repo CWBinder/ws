@@ -1,34 +1,45 @@
-The person's workspace and owner are in place. If you have been guiding them
-through setup, finish with this; there is no need to run `ws setup` again.
+Every briefing inside the workspace now names you, so an agent knows whose
+workspace it is without running anything, and `ws owner` gives it your details.
+To change a detail, run `ws edit` on the record: private facts go on your person
+record, and what a CV may show on your identity.
 
-SHOW THEM
+Two more things make agents use all this. Both change your agent's own settings,
+so setup shows them and leaves them to you.
 
-    ws owner
-    ws context
+BRIEF EVERY SESSION
 
-Explain that every briefing inside the workspace now names them, so an agent
-knows whose workspace it is without running anything, and tells it to run
-`ws owner` when it needs their details. To change a detail later, run
-`ws edit` on the record. To add a fact about them, it goes on their person
-record if it is private and on their identity if a CV should show it.
+An agent is only briefed if it runs `ws context` when a session starts. For
+Claude Code, add this to `~/.claude/settings.json`:
 
-OFFER, and do only what they accept
+    "hooks": {
+      "SessionStart": [
+        { "hooks": [ { "type": "command", "command": "{ws} context" } ] }
+      ]
+    }
 
-- Brief every session automatically. An agent is only briefed if its harness
-  runs `ws context` when a session starts. `ws help context` shows how for
-  each harness, under "Briefing every session automatically". This changes the
-  harness's settings, so show them the change first.
-- Give agents the manual. {system}/SKILL.md is a skill their agents can load;
-  how to install it depends on the harness.
-- Try one workflow: make a project, file a document and connect them.
+`ws help context` shows how for other agents, under "Briefing every session
+automatically".
 
-      ws create project first-project --type other --non-interactive
-      ws add document PATH --type report --mode copy --non-interactive
-      ws relate document:KEY to project:first-project as belongs-to
-      ws show project:first-project
+GIVE AGENTS THE MANUAL
 
-  `--mode copy` leaves the original where it is. Adding links nothing by
-  itself, which is what `ws relate` is for. These become their real records;
-  nothing cleans them up afterwards.
+ws ships a skill that teaches agents its commands. For Claude Code:
 
-From here on, `ws help` is the manual.
+    ln -s {system} ~/.claude/skills/ws
+
+TRY ONE WORKFLOW
+
+Make a project, file a document and connect them. `--mode copy` leaves the
+original where it is, and adding links nothing by itself, which is what
+`ws relate` is for.
+
+    ws create project first-project --type other --non-interactive
+    ws add document PATH --type report --mode copy --non-interactive
+    ws relate document:KEY to project:first-project as belongs-to
+    ws show project:first-project
+
+LATER
+
+Project and document types grow as you need them: the wizards offer to add a new
+one. The `by-*` browse folders have sensible shapes already, and
+`ws help rebuild views` explains changing them once there is something to
+browse. From here on, `ws help` is the manual.

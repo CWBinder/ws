@@ -146,7 +146,7 @@ created: YYYY-MM-DD
 description: >
   One paragraph.
 fields: [physics]
-subfields: [spin-qubits, shuttling]
+subfields: [numerics]
 keywords: []
 has_code: false
 has_paper: false
@@ -190,8 +190,7 @@ Allowed `fields` and `subfields` are also configured in
 ```yaml
 fields: [physics, mathematics, computer-science, ai, humanities]
 subfields:
-  physics: [quantum-information, quantum-computing, spin-qubits, shuttling,
-            numerics, quantum-chemistry, experimental]
+  physics: [numerics, experimental]
   mathematics: [tooling, numerics]
 ```
 

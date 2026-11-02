@@ -68,7 +68,7 @@ GLOBAL_NAMESPACES = {
     item.name: item
     for item in (
         NamespaceSpec("init", "maintenance", "Initialise an empty workspace and remember its location.", "contracts/workspace.md"),
-        NamespaceSpec("setup", "maintenance", "The next step of setting up ws, written for an agent guiding a person.", "contracts/workspace.md"),
+        NamespaceSpec("setup", "maintenance", "Get started: at a terminal, in a browser, or guided by an agent.", "contracts/workspace.md"),
         NamespaceSpec("rebuild", "maintenance", "Regenerate the derived layers from canonical data.", "contracts/workspace.md"),
         NamespaceSpec("index", "maintenance", "Inspect the derived search index.", "contracts/search.md"),
         NamespaceSpec("wiki", "maintenance", "Older spelling of `ws rebuild wiki`.", "contracts/wiki.md"),
@@ -353,7 +353,13 @@ EFFECTS: dict[str, EffectSpec] = {
         ),
     ),
     "owner": EffectSpec(reads=("logistics/people/ records", "profile/items/ records")),
-    "setup": EffectSpec(reads=("whether the workspace, identity and owner exist", "context/setup/ texts shipped in the ws checkout")),
+    "setup": EffectSpec(
+        reads=("whether the workspace, identity and owner exist", "context/setup/ texts shipped in the ws checkout", "templates/setup.html"),
+        writes=(
+            "at a terminal or with --web, through the commands your answers become: the workspace, the profile identity, the owner's person record, new project fields, .context/whereami.md",
+            "nothing when it prints steps for an agent, and nothing that lasts with --test",
+        ),
+    ),
     "rebuild index": EffectSpec(
         reads=("all canonical domain data", "relations"),
         writes=("index/index.sqlite",),

@@ -21,7 +21,7 @@ owner, since a program expects to parse something.
 
 ## Making the records
 
-`ws setup` guides you through both (`ws help setup`). By hand:
+`ws setup` asks you for both (`ws help setup`). By hand:
 
 ```bash
 ws create profile Alex Example --type identity --email alex@example.org

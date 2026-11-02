@@ -1,7 +1,7 @@
 # Adding literature
 
 ```bash
-ws add literature 2502.06654 --full --field physics --subfield spin-qubits
+ws add literature 2502.06654 --full --field physics --subfield numerics
 ws add literature 10.1038/s41586-019-1666-5
 ws add literature 978-0-00-000000-2 --title "Book title" \
   --author "Example, Alex" --year 2001 --publisher "Example Press"

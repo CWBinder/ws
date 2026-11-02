@@ -52,7 +52,7 @@ The ws software lives separately at `{paths.SYSTEM}`.
 ## Start
 
 - Run `ws --help` for an overview and `ws check` to validate the workspace.
-- Run `ws setup` to be guided through the first objects, alone or with an agent.
+- Run `ws setup` to be guided through the first objects: here, with `--web` in a browser, or with an agent.
 - Find later workflows in the manual: `ws help`, then `ws help <kind>` or `ws help <command>`.
 - Use `ws search WORDS` to find records, then `ws show KIND:KEY` to inspect one.
 - Add content deliberately. `ws add document FILE --mode copy` keeps the original.

@@ -50,8 +50,9 @@ Use `ws init --root /path/to/workspace` to choose another location. Initialisati
 saves that path, creates missing infrastructure and checks the workspace.
 Existing records, classifications and local instructions are preserved.
 
-**Next: run `ws setup`**, or tell an agent to run it and guide you. It sets up
-who you are, then offers to try a first workflow.
+**Next: run `ws setup`**, or `ws setup --web` to answer in a browser, or tell an
+agent to run it and guide you. It sets up who you are, then offers a first
+workflow. Add `--test` to try it without keeping anything.
 
 ## Find your way
 

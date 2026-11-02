@@ -13,7 +13,7 @@ Show it, or extend it:
 ws projects taxonomy
 ws projects add-type dataset
 ws projects add-field economics
-ws projects add-subfield physics spin-qubits
+ws projects add-subfield physics optics
 ```
 
 Editing the file directly works too, and the creation wizard offers to add

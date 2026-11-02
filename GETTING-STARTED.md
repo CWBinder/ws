@@ -1,7 +1,7 @@
 # Getting started
 
 Install ws, then run `ws setup`. This guide works for a person at a terminal or
-an agent assisting them. The quickest way is to start an agent and tell it:
+an agent assisting them. If you have an agent, the quickest way is to tell it:
 
 > Install ws by following GETTING-STARTED.md from
 > https://github.com/CWBinder/ws, then run `ws setup` and guide me through it.
@@ -38,11 +38,25 @@ reuses it when it is.
 ws setup
 ```
 
-Setup prints the next step: what to explain, what to ask, and which command to
-run with the answers. Run it again after each step. It creates the workspace,
-then your first two objects, which tell every later agent who you are, and
-then offers a first workflow. It changes nothing itself, and you can stop at any
-point and pick up later. `ws help setup` explains how it works.
+It asks its questions right there in the terminal. To answer them in a browser
+instead:
+
+```bash
+ws setup --web
+```
+
+Either way it creates the workspace, then your first two objects, which tell
+every later agent who you are. You can stop at any point and pick up later.
+
+To see how it works first, add `--test`. It goes through everything in a temporary
+folder and keeps nothing, whatever you enter:
+
+```bash
+ws setup --test
+ws setup --web --test
+```
+
+`ws help setup` explains the rest.
 
 ## Learning and maintenance
 

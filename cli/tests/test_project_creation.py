@@ -342,18 +342,18 @@ class ProjectCreationTests(unittest.TestCase):
         root = self.create_project(
             "classified-project",
             field=["physics"],
-            subfield=["spin-qubits", "shuttling"],
+            subfield=["numerics", "experimental"],
         )
         meta = project.parse_project_yaml(root / "project.yaml")
         self.assertEqual(meta["fields"], ["physics"])
-        self.assertEqual(meta["subfields"], ["spin-qubits", "shuttling"])
+        self.assertEqual(meta["subfields"], ["numerics", "experimental"])
 
     def test_project_rejects_subfield_without_a_compatible_field(self) -> None:
         with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             self.create_project(
                 "invalid-classification",
                 field=["mathematics"],
-                subfield=["spin-qubits"],
+                subfield=["experimental"],
             )
         self.assertFalse((self.projects / "invalid-classification").exists())
 

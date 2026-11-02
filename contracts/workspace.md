@@ -63,14 +63,31 @@ reported rather than silently repaired.
 
 ## Setup
 
-`ws setup` prints the first unfinished step of getting started, from the texts
-shipped under `context/setup/`: the workspace, then the profile identity, then
-the owner person, then a closing page once all exist. It writes nothing and
-asks nothing, because the agent it addresses has no terminal to be asked on: it
-says what to explain, what to ask and which command to run, and the agent holds
-the conversation. Progress is derived from whether those three exist, never
-stored, so setup can stop and resume anywhere, including before `ws init`. Its
-texts tell the agent to ask for personal facts and never to infer them.
+`ws setup` gets a person started through one list of steps, with three ways of
+asking: at a terminal it asks itself, `--web` asks in a browser, and without a
+terminal it prints the next step for an agent to carry out, and writes nothing.
+The required steps are the workspace, the profile identity and the owner person;
+fields and a briefing note are then offered, and a closing page follows. Answers
+become ordinary `ws` commands run as separate processes, so setup has no write
+path of its own beyond appending the note to `.context/whereami.md`.
+
+Which required step comes next is derived from what exists, never stored, so
+setup can stop and resume anywhere, in any mode, including before `ws init`. The
+texts under `context/setup/` tell an agent to ask for personal facts and never to
+infer them.
+
+Setup writes only to the workspace and its configuration. Hooks and skills change
+an agent's own settings, so it shows them and leaves them to the person.
+
+`--web` serves one page from a server bound to 127.0.0.1, which refuses any request
+without the token in its address or with another `Host`, so another site in the
+browser cannot reach it. It stops on Finish, on interrupt, or after 30 minutes idle.
+
+`--test` reruns the same command with `WS_WORKSPACE_ROOT` and `WS_CONFIG` in a
+temporary folder, other `WS_*` location overrides removed, and deletes the folder
+at the end. A location the person answers is ignored. Nothing outside that folder
+may change; a change that breaks this breaks `--test`'s promise. It needs someone
+to answer, so it is refused without a terminal or `--web`.
 
 ## Derived layers
 

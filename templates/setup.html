@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Set up ws</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --soft: #55534e;
+  --muted: #898781;
+  --border: rgba(11, 11, 11, 0.10);
+  --border-strong: rgba(11, 11, 11, 0.22);
+  --wash: rgba(11, 11, 11, 0.05);
+  --focus: #2a78d6;
+  --critical: #d03b3b;
+  --notice: rgba(42, 120, 214, 0.10);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 10px 28px rgba(0, 0, 0, 0.07);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --soft: #b9b7b0;
+    --border: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(255, 255, 255, 0.24);
+    --wash: rgba(255, 255, 255, 0.06);
+    --focus: #3987e5;
+    --notice: rgba(57, 135, 229, 0.16);
+    --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 16px/1.55 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+main { max-width: 620px; margin: 0 auto; padding: 40px 16px 72px; }
+h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 20px; line-height: 1.3; margin: 2px 0 14px; font-weight: 600; }
+h3 { font-size: 13px; margin: 26px 0 8px; font-weight: 600; letter-spacing: 0.04em; color: var(--soft); }
+p { margin: 0 0 12px; }
+.lead { color: var(--soft); margin-bottom: 22px; }
+.notice {
+  background: var(--notice);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  font-size: 15px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+}
+.position { font-size: 13px; color: var(--muted); }
+.progress { height: 3px; background: var(--wash); border-radius: 2px; margin-bottom: 20px; overflow: hidden; }
+.progress div { height: 100%; background: var(--focus); transition: width 0.2s; }
+code {
+  font-family: var(--mono);
+  font-size: 0.9em;
+  background: var(--wash);
+  border-radius: 4px;
+  padding: 1px 4px;
+  overflow-wrap: anywhere;
+}
+pre {
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.5;
+  background: var(--wash);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  overflow-x: auto;
+}
+form { margin-top: 20px; }
+label { display: block; margin-bottom: 16px; font-size: 15px; font-weight: 500; }
+.optional { font-weight: 400; color: var(--muted); }
+.hint { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+input, textarea {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 9px 11px;
+  font: inherit;
+  font-weight: 400;
+  color: inherit;
+  background: var(--page);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+}
+textarea { min-height: 76px; resize: vertical; }
+input:focus-visible, textarea:focus-visible, button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+button {
+  font: inherit;
+  font-weight: 500;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+button.primary { background: var(--focus); border-color: var(--focus); color: #fff; }
+button:disabled { opacity: 0.55; cursor: default; }
+.error { color: var(--critical); font-size: 15px; margin-bottom: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Set up ws</h1>
+  <p class="lead" id="about"></p>
+  <div class="notice" id="notice" hidden></div>
+  <div class="progress" id="progress" hidden><div></div></div>
+  <div class="card" id="card" aria-live="polite">Loading...</div>
+</main>
+<script>
+const token = new URLSearchParams(location.search).get("t") || "";
+const card = document.getElementById("card");
+
+function element(tag, props = {}, ...children) {
+  const node = Object.assign(document.createElement(tag), props);
+  node.append(...children);
+  return node;
+}
+
+// Backticks become code; everything is set as text, never as markup.
+function inline(text) {
+  return text.split("`").map((part, index) => (index % 2 ? element("code", { textContent: part }) : part));
+}
+
+// The shipped texts: paragraphs, indented blocks, and CAPITAL headings.
+function blocks(text) {
+  const nodes = [];
+  for (const block of text.split(/\n\s*\n/)) {
+    if (/^ {4}/.test(block)) {
+      nodes.push(element("pre", { textContent: block.split("\n").map((line) => line.slice(4)).join("\n") }));
+    } else if (/^[A-Z ]+$/.test(block.trim())) {
+      nodes.push(element("h3", { textContent: block.trim() }));
+    } else {
+      nodes.push(element("p", {}, ...inline(block.replace(/\n/g, " "))));
+    }
+  }
+  return nodes;
+}
+
+async function call(path, body) {
+  const options = { headers: { "X-Token": token } };
+  if (body) {
+    options.method = "POST";
+    options.headers["Content-Type"] = "application/json";
+    options.body = JSON.stringify(body);
+  }
+  const response = await fetch(path, options);
+  if (!response.ok) throw new Error(String(response.status));
+  return response.json();
+}
+
+function stopped() {
+  document.getElementById("progress").hidden = true;
+  card.replaceChildren(
+    element("h2", { textContent: "Setup has stopped" }),
+    element("p", {}, ...inline("Run `ws setup --web` again to carry on. What you already entered is kept, unless this was a test.")),
+  );
+}
+
+function field(question, answers) {
+  const label = element("label", {}, question.ask);
+  if (!question.required && !question.default) label.append(" ", element("span", { className: "optional", textContent: "optional" }));
+  if (question.many) label.append(element("span", { className: "hint", textContent: "Separate several with commas" }));
+  const value = answers && answers[question.key] !== undefined ? answers[question.key] : question.default;
+  const input = question.long
+    ? element("textarea", { name: question.key, value: value || "" })
+    : element("input", { name: question.key, value: value || "", type: "text", autocomplete: "off" });
+  input.required = question.required;
+  label.append(input);
+  return label;
+}
+
+function showStep(data) {
+  const step = data.step;
+  const content = [
+    element("div", { className: "position", textContent: step.position }),
+    element("h2", { textContent: step.title.charAt(0).toUpperCase() + step.title.slice(1) }),
+    ...blocks(step.explain),
+  ];
+  if (step.ignored) content.push(element("p", { className: "hint", textContent: "In this test run the answer is ignored." }));
+  const form = element("form");
+  if (data.error) form.append(element("p", { className: "error", role: "alert", textContent: data.error }));
+  for (const question of step.questions) form.append(field(question, data.answers));
+  const save = element("button", { className: "primary", type: "submit", textContent: "Continue" });
+  const actions = element("div", { className: "actions" }, save);
+  if (step.optional) {
+    const skip = element("button", { type: "button", textContent: "Skip" });
+    skip.onclick = () => send("/skip", { step: step.name }, [save, skip]);
+    actions.append(skip);
+  }
+  form.append(actions);
+  form.onsubmit = (event) => {
+    event.preventDefault();
+    const answers = Object.fromEntries(new FormData(form).entries());
+    send("/answer", { step: step.name, answers }, [save]);
+  };
+  content.push(form);
+  card.replaceChildren(...content);
+  const first = form.querySelector("input, textarea");
+  if (first) first.focus();
+}
+
+function showDone(data) {
+  const finish = element("button", { className: "primary", type: "button", textContent: "Finish" });
+  finish.onclick = async () => {
+    finish.disabled = true;
+    try { await call("/finish", {}); } catch (problem) { /* it may already have stopped */ }
+    card.replaceChildren(
+      element("h2", { textContent: "Finished" }),
+      element("p", {}, ...inline(data.done.over || "You can close this tab.")),
+    );
+  };
+  card.replaceChildren(
+    element("h2", { textContent: "Done" }),
+    element("p", { textContent: "What agents will find about you:" }),
+    element("pre", { textContent: data.done.owner }),
+    ...blocks(data.done.text),
+    ...(data.done.over ? [element("p", {}, ...inline(data.done.over))] : []),
+    element("div", { className: "actions" }, finish),
+  );
+}
+
+const required = ["workspace", "identity", "person"];
+let firstScreen = true;
+
+function show(data) {
+  const about = document.getElementById("about");
+  about.textContent = data.about;
+  about.hidden = !firstScreen || Boolean(data.done);
+  firstScreen = false;
+  const notice = document.getElementById("notice");
+  notice.hidden = !data.test;
+  notice.textContent = data.notice;
+  const bar = document.getElementById("progress");
+  bar.hidden = false;
+  const name = data.step ? data.step.name : "";
+  const done = data.done ? 1 : data.step.optional ? 0.85 : required.indexOf(name) / required.length;
+  bar.firstElementChild.style.width = `${Math.round(done * 100)}%`;
+  if (data.done) showDone(data); else showStep(data);
+  window.scrollTo(0, 0);
+}
+
+async function send(path, body, buttons) {
+  buttons.forEach((button) => { button.disabled = true; });
+  buttons[0].textContent = "Saving...";
+  try {
+    show(await call(path, body));
+  } catch (problem) {
+    stopped();
+  }
+}
+
+call("/state").then(show).catch(stopped);
+</script>
+</body>
+</html>

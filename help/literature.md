@@ -75,7 +75,7 @@ Fields are broad disciplines; every subfield must belong to a chosen field.
 
 ```bash
 ws literature taxonomy
-ws edit literature:<key> --add-field physics --add-subfield spin-qubits
+ws edit literature:<key> --add-field physics --add-subfield numerics
 ```
 
 Extending the vocabulary with `ws literature add-field` or

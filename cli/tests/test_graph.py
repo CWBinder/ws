@@ -670,12 +670,12 @@ class FolderKindTests(unittest.TestCase):
         out, _ = self.run_command(
             catalog.command_edit_any, object="project:shuttling",
             flags=["--status", "archived", "--name", "Shuttling study",
-                   "--add-subfield", "spin-qubits", "--add-keyword", "Valley splitting"],
+                   "--add-subfield", "numerics", "--add-keyword", "Valley splitting"],
         )
         meta = catalog.project.parse_project_yaml(root / "project.yaml")
         self.assertEqual(meta["status"], "archived")
         self.assertEqual(meta["title"], "Shuttling study")
-        self.assertEqual(meta["subfields"], ["spin-qubits"])
+        self.assertEqual(meta["subfields"], ["numerics"])
         self.assertEqual(meta["keywords"], ["Valley splitting"])
         self.assertIn("  One paragraph.", (root / "project.yaml").read_text(encoding="utf-8"))
         self.assertIn("updated: project:shuttling", out)

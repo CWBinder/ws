@@ -762,7 +762,9 @@ def main() -> None:
         effect
         and effect.writes
         # Derived renderings read records; they never change the search corpus.
-        and canonical_path != "init"
+        # Setup's own commands do this for themselves, in the workspace they
+        # write to; a test run's is not the one this process started with.
+        and canonical_path not in {"init", "setup"}
         and not registry.rebuilds_derived_state(canonical_path)
         # Agents are tooling configuration, not objects: their writes never
         # change the search corpus, so they do not invalidate the index.

@@ -108,7 +108,7 @@ A paper project with its classification:
 ```bash
 ws create project tax-paper --title "Tax Paper" --type paper \
   --description "Draft and analysis for the tax paper." \
-  --field physics --subfield quantum-computing --keyword tax --has-paper
+  --field physics --subfield numerics --keyword tax --has-paper
 ```
 
 A Python project with its own environment:

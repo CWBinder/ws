@@ -242,7 +242,7 @@ Classify only with values the taxonomy already has:
 
 ```bash
 ws literature taxonomy
-ws edit literature:<key> --add-field physics --add-subfield spin-qubits
+ws edit literature:<key> --add-field physics --add-subfield numerics
 ws rebuild views literature
 ```
 

@@ -94,7 +94,7 @@ the one you need and keep this one loaded:
 - **cv** ([skills/cv](skills/cv/SKILL.md)): making or updating a CV, or
   adding a publication, talk or other career fact to the profile.
 
-First-time setup is `ws setup`: it prints each step for you to guide the
+First-time setup is `ws setup`: run by you, it prints each step to guide the
 person through. Installing is in [GETTING-STARTED.md](GETTING-STARTED.md).
 When changing ws itself, start with [AGENTS.md](AGENTS.md) and the
 [contracts](contracts/README.md).
