@@ -6,7 +6,7 @@ Read first:
 - project.yaml
 - this file
 - <ws-root>/SKILL.md when operating on workspace records
-- <ws-root>/docs/README.md for usage workflows
+- `ws help` for usage workflows
 - <ws-root>/contracts/README.md when changing ws or checking an implementation guarantee
 
 Folders:

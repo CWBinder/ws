@@ -1,100 +1,94 @@
 ---
 name: ws
-description: "Use ws to read, file and connect workspace knowledge. Discover records by search, then operate on their full references."
+description: "Use for anything that creates, adds, edits, moves, relates or deletes something in the workspace (~/workspace), the person's second brain of projects, tasks, documents, resources, literature, people, organisations, events and profile; and for finding what is already there and how it connects. Load it before running any ws command and before answering what ws can do. Every change to the workspace goes through ws, never by editing or moving its files by hand."
 ---
 
-# Driving the ws CLI
+# ws: the workspace and its tool
 
-The workspace defaults to `~/workspace`; `ws init` saves a different location
-when requested. For first-time setup, follow [GETTING-STARTED.md](GETTING-STARTED.md).
-Use `ws` to create, ingest and edit managed records. Read project content at
-the paths returned by `ws show`, following the project's local instructions.
+The workspace (`~/workspace` by default) is the person's second brain:
+projects, tasks, documents, papers, contacts, events and career facts kept
+as records, with explicit relations between them. `ws` is the tool that
+keeps it. People and agents use the same commands and read the same
+manual.
 
-## Objects and REFs
+**The manual is `ws help`.** Bare, it gives the overview and a map of
+every command; `ws help <kind>` and `ws help <command>` give one page in
+full. This skill holds only what you need before your first command.
 
-Nine kinds of object: project, task, document, resource, literature,
-person, organisation, event, profile. Every object has one canonical
-reference of the form `<kind>:<key>` (a REF), e.g. `document:some-receipt`.
+## Rules
 
-Any command acting on an existing object accepts only the full REF —
-never a name, title, alias, internal id, bare key, or path. REFs come from
-`ws search`. Paths are operands only where a command explicitly ingests a
-file.
+- **Every change goes through ws.** Creating, adding, editing, relating,
+  moving and deleting are ws commands, never hand edits to store files.
+  The one exception is a project's working content (code, data, paper,
+  slides), which you work on normally, following the project's own
+  instructions.
+- **Search before creating.** A duplicate is worse than a gap. Reading is
+  free: search, show, and read the files at the paths ws prints.
+- **Content enters deliberately.** Material elsewhere stays outside until a
+  ws command brings it in; never symlink it in. Add or change things when
+  the request asks for that outcome; otherwise propose the command.
+- **Generated layers are read-only.** The `by-*` folders, `index/`, `wiki/`
+  and `dashboard.html` are rebuilt by `ws rebuild`; never edit them.
+- **Judgement calls**, such as what deserves to be an object, which
+  relation words to use and when to delete, are in `ws help values`.
 
-Most objects are defined by one YAML record; literature uses its item folder
-and canonical BibTeX citation. Some objects are only a YAML
-record (person, task, event); others own content: a document owns one
-file, a resource owns a folder of arbitrary files, a project owns a
-working folder, a literature item owns citation/PDF/source material.
-`ws show <kind>:<key>` prints the record and the paths to any content —
-that is how you find the raw material to read.
+## Objects and relations
 
-## Tools (act on objects)
+Nine kinds: project, task, document, resource, literature, person,
+organisation, event, profile. Every object has one REF, `<kind>:<key>`,
+such as `project:thesis`. Commands that act on an existing object accept
+only the full REF, never a name, title or path; REFs come from
+`ws search` or from the command that made the object.
+
+Relations are directed edges with kebab-case words
+(`person:<key> --works-at--> organisation:<key>`). Nothing is related
+automatically: relate a new object right after making it when the task
+calls for it. Run `ws relations` first and reuse a word that fits, the
+same way round.
+
+## Core commands
 
 ```text
-ws create KIND ...              mint something new: project, subproject,
-                                task, resource, profile
-ws add KIND ...                 ingest something that already exists:
-                                person, organisation, event,
+ws search [KIND] WORDS          find objects and get their REFs
+ws show REF ...                 record, content paths, every relation
+ws context [REF]                briefing: purpose, log, house rules
+ws list KINDS [filters]         every object of one kind, e.g. ws list tasks --open
+ws create KIND ...              mint: project, subproject, task, resource, profile
+ws add KIND ...                 ingest: person, organisation, event,
                                 document (a file), literature (DOI/arXiv/ISBN)
-ws add resource:<key> PATH      put a file into an existing resource bundle
-ws show REF ...                 record + content locations (mix kinds freely)
-ws edit REF --flag value        kind-specific flags; `ws edit REF --help`
-ws delete REF ...               removes the object and every relation on it
-ws list KIND [filters]          enumerate one kind; bare `ws list` counts all
-ws search [KIND] WORDS          find objects; first word may scope by kind
+ws add resource:<key> PATH      put a file into an existing bundle
+ws edit REF --flag value        change a record
+ws relate REF to REF as WORDS   connect two objects
+ws delete REF ...               remove an object and its relations
 ```
 
-You run without a terminal, so the interactive wizard never starts:
-prompts are skipped, nothing hangs, and anything not supplied as a flag
-stays empty. Pass everything relevant as flags; `ws <command> -h` lists
-them. Flags always come last, after the command and its operands.
+To answer a question about the workspace: `ws search` for the REF,
+`ws show` for the record and its relations, follow a relation with another
+`ws show`, then read the raw files at the paths it printed. A session that
+starts inside the workspace runs `ws context` first when no WORKSPACE
+BRIEFING is in context.
 
-`ws add document FILE` MOVES the file into the workspace by default; use
-`--mode copy` to leave the source in place.
+## Running commands as an agent
 
-Most read commands take `--json`; prefer it when you parse the output.
+- Without a terminal nothing is asked, so pass everything as flags; flags
+  always come last. `ws <command> -h` lists them.
+- `ws add document` moves the file by default; `--mode copy` leaves it.
+- Sign assertions with `--source` and `--observed-at` when you know them.
+- Most read commands take `--json`; prefer it when you parse output.
+- `ws capabilities KIND` lists every command for a kind, specialists
+  included; `ws describe COMMAND` says what it reads and writes.
 
-## Relations (the graph)
+## Deeper skills
 
-Conceptual connections are made explicitly after creation or ingestion:
+Two domains have their own skill, shipped under [skills/](skills/). Load
+the one you need and keep this one loaded:
 
-```text
-ws relate <kind>:<key> to <kind>:<key> as RELATION WORDS
-ws unrelate <kind>:<key> to <kind>:<key> as RELATION WORDS   (or: the relation id)
-ws show relations of <kind>:<key> [--as WORD]
-```
+- **literature** ([skills/literature](skills/literature/SKILL.md)): adding
+  a paper with PDF, TeX source and links; reading, quoting or summarising
+  one; finding papers; following citations.
+- **cv** ([skills/cv](skills/cv/SKILL.md)): making or updating a CV, or
+  adding a publication, talk or other career fact to the profile.
 
-Relation words are free-form kebab-case (`works-at`, `presented-at`).
-Recording a project package install dependency also records its `depends-on`
-edge; ordinary object creation has no conceptual-link prompts or flags.
-Before inventing one, run `ws relations` — it lists every relation word
-already in use; reuse one when it fits. Duplicate edges are no-ops. When
-you instantiate a new object whose connection to existing objects is part
-of the task, assert those edges immediately after creating it.
-
-## Finding your way
-
-```text
-ws capabilities KIND     everything one can do with that kind,
-                         specialists included (e.g. ws capabilities documents)
-ws describe COMMAND      purpose, usage guide, contract and effects
-ws <command> -h          how to type it: operands, flags, allowed values
-ws <domain> taxonomy     classifier vocabulary (documents, literature,
-                         projects, profile)
-ws domains / ws relations             the vocabulary listings
-```
-
-## Retrieval recipe
-
-1. `ws search [KIND] WORDS` — get REFs.
-2. `ws show relations of REF` — fetch connected context if needed.
-3. `ws show REF` — locate the object's content, then read the raw files.
-
-For a workflow, read the relevant guide in the shared
-[documentation index](docs/README.md), or follow the guide path from
-`ws describe COMMAND`. People and agents use the same guides, including setup.
-For judgement calls about object boundaries or relation words, read
-[workspace values](agent/ws-values.md). Read [contracts](contracts/README.md)
-when changing ws or checking an implementation guarantee. Resolve these links
-relative to this file so they work wherever ws is installed.
+Setup is in [GETTING-STARTED.md](GETTING-STARTED.md). When changing ws
+itself, start with [AGENTS.md](AGENTS.md) and the
+[contracts](contracts/README.md).

@@ -54,7 +54,6 @@ PROJECT_TAXONOMY = (
     _env_path("WS_PROJECT_TAXONOMY")
     or PROJECTS_DOMAIN / "project-taxonomy.yaml"
 )
-PROJECT_SETUP_DOC = SYSTEM / "docs" / "project-setup.md"
 
 _LEGACY_LIBRARY = _env_path("WS_LIBRARY_DIR")
 LITERATURE = (

@@ -14,9 +14,10 @@ workspace's local instructions.
 
 Before changing code, read [the contract index](contracts/README.md) and only
 those domain/shared contracts affected by the change. Contracts specify data
-ownership, invariants and extension/compatibility rules. Put workflows in docs;
-keep parser help authoritative for exact syntax. Update affected templates,
-validators, help/effects and guides alongside the implementation.
+ownership, invariants and extension/compatibility rules. Put workflows in the
+manual (`help/`); keep parser help authoritative for exact syntax. Update
+affected templates, validators, effects and manual pages alongside the
+implementation.
 
 Useful checks are `ws check cli` for command registration and isolated tests
 under `cli/tests/`. Run data-dependent tests against a temporary workspace and
@@ -62,6 +63,8 @@ Assistant-level configuration (Claude Code agents, skills, memory) lives outside
 ## Safety Rules
 
 - Do not store secrets in tracked files.
+- No AI attribution (`Co-Authored-By` lines or similar) in commits, files,
+  code or comments of this repository.
 - Do not move or sync large data unless a project rule says to do so.
 - Respect Git boundaries: workspace root is not a Git repo; managed projects
   and external source folders may be separate repos.

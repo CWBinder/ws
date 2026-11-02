@@ -10,7 +10,7 @@ spec workflow, not from repeated visual inspection — trust the template,
 verify from the build log, look at the PDF exactly once.
 
 Load the `ws` skill before running ws commands. Reference:
-[docs/profile.md](../../docs/profile.md); contract:
+`ws help profile`; contract:
 [contracts/career.md](../../contracts/career.md).
 
 ## Step 1: Application folder

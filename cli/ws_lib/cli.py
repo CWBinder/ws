@@ -132,7 +132,6 @@ def workspace_scaffold_dirs() -> list[Path]:
 def required_dirs() -> list[Path]:
     return [
         *workspace_scaffold_dirs(),
-        SYSTEM / "docs",
         SYSTEM / "help",
         SYSTEM / "templates",
         SYSTEM / "context",

@@ -21,7 +21,6 @@ PROJECTS = paths.PROJECTS
 LITERATURE_ITEMS = paths.LITERATURE_ITEMS
 CONTRACTS = paths.CONTRACTS
 PROJECT_TAXONOMY = paths.PROJECT_TAXONOMY
-PROJECT_SETUP_DOC = paths.PROJECT_SETUP_DOC
 
 PROJECT_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 PROJECT_STATUSES = ["idea", "active", "paused", "complete", "archived"]
@@ -1941,7 +1940,7 @@ More detail:
   taxonomy: {rel_home(PROJECT_TAXONOMY)}
   template: {rel_home(TEMPLATES / "project.yaml")}
   contract: {rel_home(CONTRACTS / "project.md")}
-  setup guide: {rel_home(PROJECT_SETUP_DOC)}
+  manual: ws help create project
 """,
     )
     new_project.add_argument("name", nargs="*", help="project name; words are slugified, e.g. `test project` -> `test-project`; omitted on a terminal, the wizard asks for it")

@@ -105,6 +105,12 @@ classifiers such as project types, are workspace data too, and so is
 - **Content enters deliberately.** Material elsewhere stays outside until a
   ws command brings it in. Never symlink it into the workspace.
 - **Relate what is stated or evident**, not what merely seems plausible.
+- **The root holds only its domains and service layers.** Add no other
+  top-level folder to the workspace; new material goes into a domain
+  through a ws command.
+
+What deserves to become an object, and the other judgement calls, are in
+`ws help values`.
 
 ## How the commands are organised
 

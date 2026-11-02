@@ -56,8 +56,8 @@ Roster and inbox have independent repositories and contracts.
    recover. Update schema versions when the format changes incompatibly.
    Editing a contract alone does not migrate existing user data.
 4. Update the implementation, templates, validators, command effects/help and
-   relevant usage guide together. Keep command syntax generated from the
-   parser; docs show selected workflows rather than another exhaustive list.
+   relevant manual pages together. Keep command syntax generated from the
+   parser; manual pages show workflows rather than another exhaustive list.
 5. Verify the affected guarantees with appropriate tests, especially old-data
    reads, rejected writes, identity preservation and canonical/derived boundaries.
    Record any deliberate compatibility break in the user-facing change notes.

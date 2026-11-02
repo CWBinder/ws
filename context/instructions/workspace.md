@@ -5,6 +5,7 @@ Records change only through `ws`: read the ws skill ({system}/SKILL.md)
 before changing one. Reading is free: search, show, follow relations, and
 read the files `ws show` points to. The .context/ notes (whereami.md,
 instructions.md, purpose.md, log.md) are plain Markdown, edited directly.
+Add no top-level folders to the workspace root.
 
 The log. The object you work in keeps a log, newest entry first, at the path
 this briefing names (normally .context/log.md; create it when there is none).
@@ -27,7 +28,7 @@ closing the object.
 The graph. Change records when the task asks for that outcome; otherwise
 propose the command. Assert only connections that are stated or evident,
 with --source and --observed-at, and never delete unless asked. Judgement
-calls: {system}/agent/ws-values.md.
+calls: `ws help values`.
 
 Boundaries. Working in a project or resource, change only its folder. The
 others have their own agents: propose changes to them, or hand the work
