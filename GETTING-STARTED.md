@@ -45,8 +45,10 @@ instead:
 ws setup --web
 ```
 
-Either way it creates the workspace, then your first two objects, which tell
-every later agent who you are. You can stop at any point and pick up later.
+Either way it explains what the workspace is, goes through what it holds, one kind
+at a time, and asks about whatever you can personalise, including who you are. It
+offers to fetch your papers from arXiv, and ends on your first knowledge graph and
+what an agent will read. You can stop at any point and pick up later.
 
 To see how it works first, add `--test`. It goes through everything in a temporary
 folder and keeps nothing, whatever you enter:

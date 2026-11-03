@@ -162,14 +162,10 @@ Codex: the same hook in `~/.codex/hooks.json`, as
 `{"hooks": {"SessionStart": [...]}}`. Codex runs a new hook only after you
 review and trust it with `/hooks`.
 
-Harnesses without hooks, such as OpenCode: one line in the global
-instructions file the harness reads. The same line is a useful fallback
-where a hook exists:
-
-```text
-If your working directory is inside ~/workspace and your context contains no
-WORKSPACE BRIEFING, run `ws context` before doing anything else.
-```
+Harnesses without hooks, such as OpenCode: nothing to add. The `AGENTS.md`
+that `ws init` writes at the workspace root tells any agent reading it to run
+`ws context` when no briefing is in its context, and it holds where a hook
+exists too. Outside the workspace there is nothing to brief, on purpose.
 
 ## For programs
 

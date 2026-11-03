@@ -27,10 +27,16 @@ def view(session: setup.Session) -> dict:
     """What the page shows next, as plain data."""
     known = setup.current_state()
     step = session.current(known)
-    data: dict = {"test": known["test"], "about": setup._text("about"), "notice": setup.TEST_NOTICE}
+    data: dict = {"test": known["test"], "notice": setup.TEST_NOTICE}
+    data["message"] = session.message
     if step is None:
+        graph = setup.first_graph(known)
+        session.graph_page = setup.rebuild_graph_page(known) if graph else None
         data["done"] = {
             "owner": setup.owner_summary(),
+            "graph": graph,
+            "reads": setup._text("reads"),
+            "briefing": setup.briefing_now(known),
             "text": setup._text("done"),
             "over": setup.TEST_OVER if known["test"] else "",
         }
@@ -39,7 +45,9 @@ def view(session: setup.Session) -> dict:
         "name": step.name,
         "title": step.title,
         "position": setup.position(step),
-        "optional": step in setup.OPTIONAL,
+        "progress": setup.progress(step),
+        "optional": step.name not in setup.REQUIRED,
+        "choices": session.choices(step, known),
         "explain": setup.explain(step, known),
         "ignored": known["test"] and step.name == "workspace",
         "questions": [
@@ -48,8 +56,8 @@ def view(session: setup.Session) -> dict:
                 "ask": question.ask,
                 "many": question.many,
                 "required": question.required,
-                "default": setup.default_of(question, known),
-                "long": question.key in {"description", "note"},
+                "default": session.default_of(question, known),
+                "long": question.key in {"description", "goals", "rules", "note"},
             }
             for question in step.questions
         ],
@@ -84,8 +92,12 @@ def run(open_browser: bool = True) -> None:
 
         def do_GET(self) -> None:
             url = urlparse(self.path)
-            if url.path == "/" and self._allowed(parse_qs(url.query).get("t", [""])[0]):
+            offered = parse_qs(url.query).get("t", [""])[0]
+            if url.path == "/" and self._allowed(offered):
                 self._send(200, PAGE.read_bytes(), "text/html")
+            elif url.path == "/graph" and self._allowed(offered):
+                page = getattr(session, "graph_page", None)
+                self._send(200, page.read_bytes(), "text/html") if page else self._send(404, b"{}")
             elif url.path == "/state" and self._allowed(self.headers.get("X-Token", "")):
                 with lock:
                     self._json(view(session))
@@ -108,7 +120,10 @@ def run(open_browser: bool = True) -> None:
                 # A second tab or a double click may answer a step already gone.
                 if step is None or step.name != body.get("step"):
                     self._json(view(session))
-                elif self.path == "/skip" and step in setup.OPTIONAL:
+                elif self.path == "/end-tour" and step.name not in setup.REQUIRED:
+                    session.end_tour()
+                    self._json(view(session))
+                elif self.path == "/skip" and step.name not in setup.REQUIRED:
                     session.skip(step)
                     self._json(view(session))
                 elif self.path == "/answer":

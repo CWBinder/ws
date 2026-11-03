@@ -165,6 +165,29 @@ def owner_person() -> ObjectRef | None:
     return next(filter(is_owner, stored_objects("person")), None)
 
 
+def _identity_data() -> dict:
+    """The active profile identity's record, the owner's public half."""
+    for ref in stored_objects("profile"):
+        data = ref.data or {}
+        if data.get("type") == "identity" and str(data.get("status", "") or "") != "merged":
+            return data
+    return {}
+
+
+def _phone_digits(value: object) -> str:
+    return re.sub(r"\D", "", str(value))
+
+
+def owner_overlap(person_data: dict, identity_data: dict) -> list[str]:
+    """Contact details on both of the owner's records, which should be on one."""
+    emails = {_norm(str(item)) for item in identity_data.get("emails", [])}
+    phones = {_phone_digits(item) for item in identity_data.get("phones", [])}
+    return [
+        *(str(item) for item in person_data.get("emails", []) if _norm(str(item)) in emails),
+        *(str(item) for item in person_data.get("phones", []) if _phone_digits(item) in phones),
+    ]
+
+
 def _refuse_second_owner(allowed_id: str = "") -> None:
     current = owner_person()
     if current is not None and current.id != allowed_id:
@@ -497,6 +520,13 @@ def findings(type_names: set[str] | None = None, stale_after: int = 180) -> list
                 "severity": "error",
                 "message": "at most one person may be the owner: " + ", ".join(obj.ref for obj in owners),
             })
+        for obj in owners:
+            for detail in owner_overlap(obj.data or {}, _identity_data()):
+                results.append({
+                    "severity": "warning",
+                    "id": obj.id,
+                    "message": f"{detail} is on both the owner's person record and identity; keep it on one",
+                })
     ids: dict[str, ObjectRef] = {}
     refs: dict[str, ObjectRef] = {}
     for obj in all_objects():
@@ -597,7 +627,11 @@ def _matches_ensure(
             if _norm(website) == _norm(str(data.get("website", ""))) or title_matches:
                 matches.append(obj)
             continue
-        if email and any(_norm(email) == _norm(str(item)) for item in data.get("emails", [])):
+        known_emails = data.get("emails", [])
+        if email and type_name == "person" and is_owner(obj):
+            # The owner's public addresses live on their identity alone.
+            known_emails = [*known_emails, *_identity_data().get("emails", [])]
+        if email and any(_norm(email) == _norm(str(item)) for item in known_emails):
             matches.append(obj)
             continue
         if title_matches:

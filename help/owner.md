@@ -34,6 +34,11 @@ For someone already on record:
 ws edit person:<key> --owner
 ```
 
+Each fact lives on one of the two records, never both: an address a CV should
+show goes on the identity, and the others on the person. `ws check logistics`
+warns about a detail on both. Matching a person by email still finds the owner
+through the identity's addresses.
+
 At most one person is the owner, and a second is refused until the first is
 cleared with `ws edit person:<key> --no-owner`. The identity needs no label of
 its own: its type is the label, and there is at most one (`ws help profile`).

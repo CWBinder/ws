@@ -356,7 +356,7 @@ EFFECTS: dict[str, EffectSpec] = {
     "setup": EffectSpec(
         reads=("whether the workspace, identity and owner exist", "context/setup/ texts shipped in the ws checkout", "templates/setup.html"),
         writes=(
-            "at a terminal or with --web, through the commands your answers become: the workspace, the profile identity, the owner's person record, new project fields, .context/whereami.md",
+            "at a terminal or with --web, through the commands your answers become: the workspace, the profile identity, the owner's person record, taxonomy values, a first project, document, resource and task, literature items, organisations, people, relations, the dashboard, .context/ notes",
             "nothing when it prints steps for an agent, and nothing that lasts with --test",
         ),
     ),

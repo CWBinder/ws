@@ -65,18 +65,21 @@ reported rather than silently repaired.
 
 `ws setup` gets a person started through one list of steps, with three ways of
 asking: at a terminal it asks itself, `--web` asks in a browser, and without a
-terminal it prints the next step for an agent to carry out, and writes nothing.
-The required steps are the workspace, the profile identity and the owner person;
-fields and a briefing note are then offered, and a closing page follows. Answers
-become ordinary `ws` commands run as separate processes, so setup has no write
-path of its own beyond appending the note to `.context/whereami.md`.
+terminal it prints the steps, or with `--step` one of them, for an agent to carry
+out, and writes nothing. The steps explain what the workspace is, go through each
+kind of object and ask about what can be personalised, propose first relations from
+the answers, and explain how the briefing reaches an agent. They end on the first
+knowledge graph and the briefing itself. Only the workspace, the profile identity
+and the owner person are required, and no relation is made unless the person confirms it.
+Answers become ordinary `ws` commands run as separate processes, so setup has no
+write path of its own beyond adding to `.context/` notes.
 
-Which required step comes next is derived from what exists, never stored, so
-setup can stop and resume anywhere, in any mode, including before `ws init`. The
-texts under `context/setup/` tell an agent to ask for personal facts and never to
-infer them.
+Which required step is missing is derived from what exists, never stored, so setup
+can stop and resume anywhere, in any mode, including before `ws init`. The texts
+under `context/setup/` tell an agent to ask for personal facts and never to infer them.
 
-Setup writes only to the workspace and its configuration. Hooks and skills change
+Setup writes only to the workspace and its configuration, and reaches the network
+only to search arXiv and fetch the papers the person picks. Hooks and skills change
 an agent's own settings, so it shows them and leaves them to the person.
 
 `--web` serves one page from a server bound to 127.0.0.1, which refuses any request

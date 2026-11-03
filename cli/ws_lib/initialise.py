@@ -75,6 +75,7 @@ Read the generic ws operating manual at `{paths.SYSTEM / 'SKILL.md'}` when using
 Read the manual with `ws help` for workflows: `ws help <kind>`, `ws help <command>`.
 Use `ws <command> --help` for flags and `ws describe COMMAND` for effects.
 Find existing objects with `ws search`, and use their full `kind:key` references.
+If your context holds no WORKSPACE BRIEFING, run `ws context` before anything else.
 Use ws commands to create, ingest, classify and relate records. Read raw content
 at the paths returned by `ws show`. In project folders, follow local `AGENTS.md`.
 Do not put credentials in records or generated documentation.

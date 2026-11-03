@@ -118,12 +118,19 @@ button {
 button.primary { background: var(--focus); border-color: var(--focus); color: #fff; }
 button:disabled { opacity: 0.55; cursor: default; }
 .error { color: var(--critical); font-size: 15px; margin-bottom: 14px; }
+.message { font-size: 15px; color: var(--soft); }
+button.quiet { border-color: transparent; color: var(--soft); }
+.choices { margin-bottom: 18px; max-height: 420px; overflow-y: auto; }
+.choice { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; margin-bottom: 10px; }
+.choice input { width: auto; margin: 5px 0 0; flex: none; }
+.wide main { max-width: 980px; }
+pre.briefing { max-height: 440px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+iframe.graph { width: 100%; height: 840px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; background: var(--page); }
 </style>
 </head>
 <body>
 <main>
   <h1>Set up ws</h1>
-  <p class="lead" id="about"></p>
   <div class="notice" id="notice" hidden></div>
   <div class="progress" id="progress" hidden><div></div></div>
   <div class="card" id="card" aria-live="polite">Loading...</div>
@@ -201,24 +208,56 @@ function showStep(data) {
   if (step.ignored) content.push(element("p", { className: "hint", textContent: "In this test run the answer is ignored." }));
   const form = element("form");
   if (data.error) form.append(element("p", { className: "error", role: "alert", textContent: data.error }));
+  else if (data.message) content.unshift(element("p", { className: "message", textContent: data.message }));
   for (const question of step.questions) form.append(field(question, data.answers));
+  if (step.choices.length) {
+    const list = element("div", { className: "choices" });
+    for (const choice of step.choices) {
+      list.append(element("label", { className: "choice" },
+        element("input", { type: "checkbox", name: "chosen", value: choice.id, checked: choice.checked }),
+        element("span", { textContent: choice.label })));
+    }
+    form.append(list);
+  }
   const save = element("button", { className: "primary", type: "submit", textContent: "Continue" });
   const actions = element("div", { className: "actions" }, save);
   if (step.optional) {
-    const skip = element("button", { type: "button", textContent: "Skip" });
-    skip.onclick = () => send("/skip", { step: step.name }, [save, skip]);
-    actions.append(skip);
+    const rest = element("button", { type: "button", className: "quiet", textContent: "Skip to the end" });
+    rest.onclick = () => send("/end-tour", { step: step.name }, [rest, save]);
+    if (step.questions.length || step.choices.length) {
+      const skip = element("button", { type: "button", textContent: "Skip this" });
+      skip.onclick = () => send("/skip", { step: step.name }, [skip, save, rest]);
+      actions.append(skip);
+    }
+    actions.append(rest);
   }
   form.append(actions);
   form.onsubmit = (event) => {
     event.preventDefault();
-    const answers = Object.fromEntries(new FormData(form).entries());
+    const values = new FormData(form);
+    const answers = Object.fromEntries(values.entries());
+    answers.chosen = values.getAll("chosen");
     send("/answer", { step: step.name, answers }, [save]);
   };
   content.push(form);
   card.replaceChildren(...content);
   const first = form.querySelector("input, textarea");
   if (first) first.focus();
+}
+
+// The dashboard, opened at its graph. A link to the section would scroll this
+// page too, so the frame scrolls itself.
+function graphFrame() {
+  const frame = element("iframe", { className: "graph", title: "Your knowledge graph", src: `/graph?t=${encodeURIComponent(token)}` });
+  frame.onload = () => {
+    const card = frame.contentDocument.getElementById("graph-card");
+    if (card) frame.contentWindow.scrollTo(0, card.offsetTop);
+  };
+  return frame;
+}
+
+function inlineParagraph(text) {
+  return [element("p", {}, ...inline(text))];
 }
 
 function showDone(data) {
@@ -232,8 +271,16 @@ function showDone(data) {
     );
   };
   card.replaceChildren(
-    element("h2", { textContent: "Done" }),
-    element("p", { textContent: "What agents will find about you:" }),
+    element("h2", { textContent: "Your first knowledge graph" }),
+    ...(data.message ? [element("p", { className: "message", textContent: data.message })] : []),
+    ...(data.done.graph.length ? [
+      element("pre", { textContent: data.done.graph.join("\n") }),
+      graphFrame(),
+    ] : []),
+    element("h3", { textContent: "WHAT YOUR AGENT READS" }),
+    ...blocks(data.done.reads),
+    element("pre", { className: "briefing", textContent: data.done.briefing }),
+    ...inlineParagraph("When it needs your details, it runs `ws owner`:"),
     element("pre", { textContent: data.done.owner }),
     ...blocks(data.done.text),
     ...(data.done.over ? [element("p", {}, ...inline(data.done.over))] : []),
@@ -241,21 +288,14 @@ function showDone(data) {
   );
 }
 
-const required = ["workspace", "identity", "person"];
-let firstScreen = true;
-
 function show(data) {
-  const about = document.getElementById("about");
-  about.textContent = data.about;
-  about.hidden = !firstScreen || Boolean(data.done);
-  firstScreen = false;
+  document.body.classList.toggle("wide", Boolean(data.done));
   const notice = document.getElementById("notice");
   notice.hidden = !data.test;
   notice.textContent = data.notice;
   const bar = document.getElementById("progress");
   bar.hidden = false;
-  const name = data.step ? data.step.name : "";
-  const done = data.done ? 1 : data.step.optional ? 0.85 : required.indexOf(name) / required.length;
+  const done = data.done ? 1 : data.step.progress;
   bar.firstElementChild.style.width = `${Math.round(done * 100)}%`;
   if (data.done) showDone(data); else showStep(data);
   window.scrollTo(0, 0);

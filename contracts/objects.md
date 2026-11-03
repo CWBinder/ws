@@ -68,6 +68,11 @@ merging an owner carries the label to the surviving record. Clearing the label
 removes the key, since absent means not the owner. The identity's type is its
 label (`contracts/career.md`).
 
+Each contact detail lives on one of the two, so that nothing can drift: `ws check`
+warns about an email or phone on both, and person matching by email counts the
+identity's addresses as the owner's. Global agent instructions hold none of this;
+agents find the owner through the briefing and `ws owner`.
+
 `ws owner` prints both and writes nothing. With neither it prints nothing and
 exits 0, so any caller may run it unconditionally; `--json` prints `null`.
 Nothing depends on an owner existing: every command works without one, and the

@@ -1375,6 +1375,9 @@ def command_literature_search_arxiv(args: argparse.Namespace) -> None:
         "sortBy": args.sort,
         "sortOrder": "descending",
     })
+    if getattr(args, "json", False):
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
+        return
     if not rows:
         print("no arXiv results")
         return
@@ -2109,6 +2112,7 @@ Contract:
     lit_search_arxiv.add_argument("--start", type=int, default=0, help="zero-based result offset; default: 0")
     lit_search_arxiv.add_argument("--sort", choices=["relevance", "lastUpdatedDate", "submittedDate"], default="relevance",
                                   help="result order (default relevance)")
+    lit_search_arxiv.add_argument("--json", action="store_true", help="print the results as JSON")
     lit_search_arxiv.set_defaults(func=command_literature_search_arxiv)
 
     lit_enrich = lit_sub.add_parser("enrich", help="add source-backed citation facts when found")

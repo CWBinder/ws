@@ -1,15 +1,20 @@
-Every briefing inside the workspace now names you, so an agent knows whose
-workspace it is without running anything, and `ws owner` gives it your details.
-To change a detail, run `ws edit` on the record: private facts go on your person
-record, and what a CV may show on your identity.
+CHANGING IT
 
-Two more things make agents use all this. Both change your agent's own settings,
-so setup shows them and leaves them to you.
+Each part of the briefing is labelled with where it comes from. `[workspace · ws]`
+ships with ws. A path, such as `.context/whereami.md`, is a note of yours in plain
+Markdown, which you can edit whenever you like. To change a detail about yourself, run
+`ws edit` on the record: private facts go on your person record, and what a CV may
+show on your identity.
+
+Change these with care. An agent takes what the briefing says as fact, so one wrong
+line misleads every session after it, and every line is read every time. Keep notes
+short and true, and remove what has gone stale.
 
 BRIEF EVERY SESSION
 
-An agent is only briefed if it runs `ws context` when a session starts. For
-Claude Code, add this to `~/.claude/settings.json`:
+An agent is only briefed if it runs `ws context` when a session starts. Making that
+automatic changes your agent's own settings, so setup shows how and leaves it to you.
+For Claude Code, add this to `~/.claude/settings.json`:
 
     "hooks": {
       "SessionStart": [
@@ -25,17 +30,6 @@ GIVE AGENTS THE MANUAL
 ws ships a skill that teaches agents its commands. For Claude Code:
 
     ln -s {system} ~/.claude/skills/ws
-
-TRY ONE WORKFLOW
-
-Make a project, file a document and connect them. `--mode copy` leaves the
-original where it is, and adding links nothing by itself, which is what
-`ws relate` is for.
-
-    ws create project first-project --type other --non-interactive
-    ws add document PATH --type report --mode copy --non-interactive
-    ws relate document:KEY to project:first-project as belongs-to
-    ws show project:first-project
 
 LATER
 
