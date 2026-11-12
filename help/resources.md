@@ -58,10 +58,13 @@ no other classifier; they are placed by their relations.
 
 ## Working in a bundle
 
-Files enter a bundle only through `ws add resource:<key> PATH`; do not
-copy, move or delete them by hand. The `.context/` notes are the exception:
-`purpose.md` says what the bundle is for and `log.md` what has happened,
-newest entry first, and both are edited directly. A bundle that keeps
+Files inside an existing bundle may be added, replaced and deleted directly;
+only a new bundle (`ws create resource`) and its record (`ws edit`) need ws.
+`ws add resource:<key> PATH` is the convenient way to bring a file in from
+elsewhere: it also stamps `updated_at` and refreshes search. After changing
+files by hand, run `ws rebuild index` so search finds them. The `.context/`
+notes are edited directly too: `purpose.md` says what the bundle is for and
+`log.md` what has happened, newest entry first. A bundle that keeps
 growing, such as an application in progress, benefits from both.
 `ws show resource:<key>` summarises them under the record, and
 `ws context resource:<key>` gives the full briefing (`ws help context`).

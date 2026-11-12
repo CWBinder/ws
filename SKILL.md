@@ -19,9 +19,10 @@ full. This skill holds only what you need before your first command.
 
 - **Every change goes through ws.** Creating, adding, editing, relating,
   moving and deleting are ws commands, never hand edits to store files.
-  The one exception is a project's working content (code, data, paper,
+  The exceptions are a project's working content (code, data, paper,
   slides), which you work on normally, following the project's own
-  instructions.
+  instructions, and the files inside an existing resource bundle, which
+  you may add, replace and delete directly (`ws help resources`).
 - **Search before creating.** A duplicate is worse than a gap. Reading is
   free: search, show, and read the files at the paths ws prints.
 - **Content enters deliberately.** Material elsewhere stays outside until a
