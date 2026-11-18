@@ -145,8 +145,6 @@ title: <human title>
 type: paper
 status: active
 created: YYYY-MM-DD
-description: >
-  One paragraph.
 fields: [physics]
 subfields: [numerics]
 keywords: []
@@ -166,6 +164,13 @@ sync:
   git: []
   data: []
 ```
+
+`project.yaml` holds no purpose: what a project is for lives in
+`.context/purpose.md` alone ([Context](#context)). A project's description,
+wherever ws shows or searches it, is read from that file. A `description`
+key that older projects still carry is read by nothing, and
+`ws projects migrate` removes it ([Context
+migration](#context-migration-root-logmd-readme-purposes-and-description)).
 
 Allowed `type` values are configured in:
 
@@ -343,8 +348,9 @@ belongs to the person; an agent fills it from what they said or by asking
 them, and never invents it. `ws create project` writes the `--description`
 text there; without one it writes the placeholder from
 `templates/purpose.md`, an HTML comment that the context layer reads as not
-set yet. `project.yaml`'s `description` is catalog metadata and is not kept
-in step. `README.md` points at the file instead of repeating it.
+set yet. Nothing else keeps a copy: `README.md` points at the file,
+`project.yaml` (and a subproject's `subproject.yaml`) has no `description`,
+and search, `ws show`, the briefing and the wiki read the purpose from here.
 
 ### `.context/log.md`
 
@@ -371,12 +377,22 @@ condensed into one summary entry. `ws create project` writes the first entry.
 
 ### What creation reports
 
-After creating, `ws create project` (and `ws create subproject`) prints a
-short block for whoever ran it, usually an agent: the purpose is in
-`.context/purpose.md` and must come from the person's words or a question to
-them, never invention (or, with `--description`, that it holds that text);
-the log is `.context/log.md`, with an entry after each piece of work; and
-`ws context project:<key>` gives the full briefing.
+`ws create project` (and `ws create subproject`) ends its output with the
+next steps for whoever ran it, usually an agent, before any other work:
+
+```text
+Next, before any other work:
+  purpose   not set. Ask the person what this project is for and write their
+            words into .context/purpose.md. Never invent it.
+  log       after each piece of work, add an entry at the top of .context/log.md.
+  briefing  run now: ws context project:<key>  (house rules and this project's context)
+```
+
+With `--description`, the purpose line instead quotes what
+`.context/purpose.md` now holds and says that if these are not the person's
+own words (the agent wrote or reworded them), it shows them the text and
+corrects it. Agents usually write a description themselves from a request;
+this is where they are told to check it with the person.
 
 ## Git Boundary and Sync
 
@@ -491,13 +507,15 @@ Projects created before `in/` and `out/` became standard stay readable.
 - Every change lands in the project's own working tree and shows in its
   `git diff`; restoring those files undoes it.
 
-## Context migration: root `LOG.md` and README purposes
+## Context migration: root `LOG.md`, README purposes and `description`
 
 Projects created before the context moved into `.context/` kept their log in
-a root `LOG.md` and their purpose in the README's `## Purpose` section. They
-stay readable: the context layer briefs from those older locations and marks
-them as such ([Context](context.md)). No key changes, so `schema_version`
-stays `1`.
+a root `LOG.md`, their purpose in the README's `## Purpose` section, and a
+copy of it as `description` in `project.yaml` (or `subproject.yaml`). They
+stay readable: the context layer briefs from the older log and README
+locations and marks them as such ([Context](context.md)); the `description`
+key is read by nothing. Dropping an unread key changes no reader, so
+`schema_version` stays `1`.
 
 `ws projects migrate [REF ...]` converts them, for the named projects or
 every project and subproject in the store. Without `--apply` it prints the
@@ -505,20 +523,27 @@ plan and writes nothing; with it, it makes these changes:
 
 - a root `LOG.md` moves to `.context/log.md`, unchanged;
 - where `.context/purpose.md` is absent, empty or still the placeholder, it
-  is written from the README's Purpose section verbatim; with no such
-  section, the placeholder is written;
+  is written from the README's Purpose section verbatim, or failing that
+  from the `description` in `project.yaml`; with neither, the placeholder is
+  written;
 - a README Purpose section that matches `.context/purpose.md` word for word
   (ignoring whitespace) is replaced by the pointer, so the purpose keeps one
   home;
 - the lines the previous templates wrote in `AGENTS.md` and `README.md`
   naming `LOG.md` are replaced, where they appear verbatim, by the current
   template lines naming `.context/`;
+- the `description` in `project.yaml` or `subproject.yaml` is removed where
+  it is the old template placeholder (`One paragraph.`), or where its text
+  (ignoring whitespace) is kept elsewhere: in `.context/purpose.md`, or in a
+  README Purpose section that stays until the person settles it; every
+  other line of the file stays as it is;
 - a project with no log at all gets `.context/log.md` with a first entry.
 
-Migration moves and copies; it never deletes content or merges text. What it
-cannot decide is listed for the person and left as it is: a log in both
-places, a README Purpose section that differs from `.context/purpose.md`,
-and other lines that still name `LOG.md`. Running it again changes nothing
+Migration moves and copies; it removes only a copy whose text stays in
+another file, and never merges text. What it cannot decide is listed for the
+person and left as it is: a log in both places, a README Purpose section
+that differs from `.context/purpose.md`, a `description` that differs from
+both, and other lines that still name `LOG.md`. Running it again changes nothing
 already migrated. Every change lands in the project's own working tree and
 shows in its `git status`; restoring those files undoes it.
 

@@ -230,6 +230,37 @@ class ContextTests(unittest.TestCase):
         self.assertIn("ask them, never invent it", text)
         self.assertEqual(context.show_summary(catalog.resolve("project:gamma")), {})
 
+    def test_an_unset_purpose_comes_first_as_the_next_step(self) -> None:
+        gamma = self.project("gamma", "Gamma")
+        (gamma / ".context").mkdir()
+        (gamma / ".context" / "purpose.md").write_text(
+            (project.TEMPLATES / "purpose.md").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
+        lines = context.render(self.brief(gamma)).splitlines()
+
+        self.assertTrue(lines[0].startswith("WORKSPACE BRIEFING: project:gamma"))
+        nxt = (
+            "Next: the purpose is not set. Ask the person, then write their words into "
+            f"{context._home_path(gamma)}/.context/purpose.md"
+        )
+        self.assertEqual(lines[3], nxt)
+        self.assertEqual(lines[5], "WHERE YOU ARE")
+        purpose = lines.index("PURPOSE")
+        self.assertIn("not set yet", lines[purpose + 1])  # the section still says so in its place
+        for folder in (self.alpha, self.beta, self.root, self.root / "projects"):
+            # A purpose (also one in an older location), the root and a store: no such line.
+            self.assertNotIn("Next:", context.render(self.brief(folder)).split("WHERE YOU ARE")[0], folder)
+
+    def test_a_projects_description_is_its_purpose(self) -> None:
+        metadata = self.alpha / "project.yaml"
+        metadata.write_text(metadata.read_text(encoding="utf-8") + "description: >\n  Stale copy.\n", encoding="utf-8")
+
+        data = indexing.searchable_data(catalog.resolve("project:alpha"))
+
+        self.assertEqual(data["description"], "Find out whether shuttling works in SiMOS.\n\nAnd say so when it does not.")
+        self.assertNotIn("Stale copy.", json.dumps(data))
+
     def test_comments_are_left_out_of_a_filled_purpose(self) -> None:
         delta = self.project("delta", "Delta")
         (delta / ".context").mkdir()

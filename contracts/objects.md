@@ -34,7 +34,8 @@ name         human-readable display name; searchable, not an operand
 type         the standard classifier within the kind (college, invoice,
              research, fair, …); may be empty
 aliases      alternative search terms; may be empty
-description  one or two sentences of prose; searched, never grouped by
+description  one or two sentences of prose; searched, never grouped by;
+             a project's is its purpose, read from .context/purpose.md
 ```
 
 Search examines names, aliases, keys, identifiers, and domain metadata, and

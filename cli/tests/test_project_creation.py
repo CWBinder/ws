@@ -62,12 +62,21 @@ class ProjectCreationTests(unittest.TestCase):
 
     def test_subproject_creation_and_invisibility(self) -> None:
         self.create_project("studies")
-        with contextlib.redirect_stdout(io.StringIO()):
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
             project.command_project_sub(argparse.Namespace(
                 name=["corner shuttling"], project="studies", description=None, projects_dir=None,
             ))
         sub = self.projects / "studies" / "corner-shuttling"
         self.assertTrue((sub / "subproject.yaml").exists())
+        self.assertNotIn("description", (sub / "subproject.yaml").read_text())
+        output = stdout.getvalue()
+        self.assertTrue(output.endswith(
+            "\nNext, before any other work:\n"
+            "  purpose   not set. Ask the person what this project is for and write their\n"
+            "            words into .context/purpose.md. Never invent it.\n"
+            "  log       after each piece of work, add an entry at the top of .context/log.md.\n"
+            "  briefing  run now: ws context project:studies/corner-shuttling  (house rules and this project's context)\n"
+        ))
         for folder in ("in", "code", "data", "out"):
             self.assertTrue((sub / folder).is_dir())
             self.assertTrue((sub / folder / ".gitkeep").exists())
@@ -374,6 +383,11 @@ class ProjectCreationTests(unittest.TestCase):
         self.assertIn(f"## Purpose\n\n{project.README_PURPOSE_POINTER}\n", readme)
         self.assertNotIn("gate is fast enough", readme)
         self.assertEqual(project.readme_purpose(root / "README.md"), "")  # a pointer is no purpose
+        metadata = (root / "project.yaml").read_text(encoding="utf-8")
+        self.assertNotIn("description", metadata)  # no second copy to drift
+        self.assertNotIn("gate is fast enough", metadata)
+        self.assertIsNone(project.yaml_description(root / "project.yaml"))
+        self.assertEqual(project.context_layout_plan(root, "purposed", "Purposed"), ([], []))
 
     def test_without_a_description_the_purpose_is_a_placeholder(self) -> None:
         root = self.create_project("unpurposed", description=None)
@@ -382,7 +396,7 @@ class ProjectCreationTests(unittest.TestCase):
         self.assertEqual(purpose.read_text(encoding="utf-8"), (project.TEMPLATES / "purpose.md").read_text(encoding="utf-8"))
         self.assertTrue(purpose.read_text(encoding="utf-8").startswith("<!--"))
         self.assertEqual(project.note_text(purpose), "")
-        self.assertIn("description: >\n  One paragraph.", (root / "project.yaml").read_text(encoding="utf-8"))
+        self.assertNotIn("description", (root / "project.yaml").read_text(encoding="utf-8"))
 
     def guidance(self, **overrides) -> str:
         values = {
@@ -395,22 +409,40 @@ class ProjectCreationTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
             project.command_new_project(argparse.Namespace(**values))
         output = stdout.getvalue()
-        return output[output.index("Every project keeps its context in .context/:"):]
+        return output[output.index("\nNext, before any other work:\n") + 1:]
 
-    def test_creation_tells_whoever_ran_it_what_to_fill_in(self) -> None:
+    def test_creation_ends_with_the_next_steps(self) -> None:
         block = self.guidance()
 
-        self.assertEqual(len(block.strip().splitlines()), 4)
-        self.assertIn("purpose.md  not set yet: fill it from what the person said, or ask them.", block)
-        self.assertIn("never invent it", block)
-        self.assertIn("log.md      add an entry at the top after each piece of work.", block)
-        self.assertIn("briefing    ws context project:guided", block)
+        self.assertEqual(block, (
+            "Next, before any other work:\n"
+            "  purpose   not set. Ask the person what this project is for and write their\n"
+            "            words into .context/purpose.md. Never invent it.\n"
+            "  log       after each piece of work, add an entry at the top of .context/log.md.\n"
+            "  briefing  run now: ws context project:guided  (house rules and this project's context)\n"
+        ))  # the whole rest of the output: nothing is printed after it
 
-    def test_guidance_names_a_given_description(self) -> None:
-        block = self.guidance(name="described", description="Make the decoder fast.")
+    def test_next_steps_quote_a_given_description_for_checking(self) -> None:
+        text = (
+            "Make the decoder fast enough for real-time feedback on the next chip, "
+            "and find out where the time goes."
+        )
+        block = self.guidance(name="described", description=text)
+        lines = block.splitlines()
 
-        self.assertIn("purpose.md  holds the description given at creation", block)
-        self.assertIn("never invent it", block)
+        self.assertEqual(lines[0], "Next, before any other work:")
+        self.assertEqual(lines[1], "  purpose   .context/purpose.md now reads:")
+        quoted = [line for line in lines[2:] if line.startswith(" " * 14)]
+        self.assertGreater(len(quoted), 1)  # wrapped
+        self.assertTrue(all(len(line) <= 80 for line in quoted))
+        self.assertEqual(" ".join(line.strip() for line in quoted), f'"{text}"')
+        self.assertIn(
+            "            If these are not the person's own words (you wrote or reworded\n"
+            "            them), show them this and correct it.\n",
+            block,
+        )
+        self.assertNotIn("not set", block)
+        self.assertTrue(lines[-1].startswith("  briefing  run now: ws context project:described"))
 
     def test_agents_template_carries_every_line_migration_writes(self) -> None:
         template = (project.TEMPLATES / "AGENTS.md").read_text(encoding="utf-8").splitlines()

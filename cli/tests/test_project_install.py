@@ -282,13 +282,23 @@ class ProjectInstallTests(unittest.TestCase):
 
     def make_log_md_layout(self, name: str, purpose: str = "Find out whether it works.") -> Path:
         """A project as creation left it while the log was a root LOG.md and
-        the purpose sat in the README, with one hand-written LOG.md rule."""
+        the purpose sat in the README and in project.yaml, with one
+        hand-written LOG.md rule."""
         root = self.create_project(name)
         shutil.rmtree(root / ".context")
         (root / "LOG.md").write_text(OLD_LOG, encoding="utf-8")
         (root / "README.md").write_text(LOG_MD_README.format(name=name, purpose=purpose), encoding="utf-8")
         (root / "AGENTS.md").write_text(LOG_MD_AGENTS.format(name=name), encoding="utf-8")
+        self.describe(root, purpose)
         return root
+
+    def describe(self, root: Path, text: str, name: str = "project.yaml") -> None:
+        """Give a metadata file the `description:` block older creation wrote."""
+        path = root / name
+        lines = path.read_text(encoding="utf-8").splitlines()
+        at = next(number for number, line in enumerate(lines) if line.startswith("created:")) + 1
+        lines[at:at] = ["description: >", f"  {text}"]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     def run_migrate(self, apply: bool = False) -> str:
         with contextlib.redirect_stdout(io.StringIO()) as stdout:
@@ -314,8 +324,9 @@ class ProjectInstallTests(unittest.TestCase):
         self.assertIn("will: README.md: replace the Purpose section", output)
         self.assertIn("will: AGENTS.md: rewrite 5 template lines to name .context/ instead of LOG.md", output)
         self.assertIn("will: README.md: rewrite 1 template line to name .context/ instead of LOG.md", output)
+        self.assertIn("will: project.yaml: remove description, a copy of .context/purpose.md", output)
         self.assertIn("left for you: AGENTS.md line 18 still names LOG.md: edit it by hand", output)
-        self.assertIn("dry run: 5 changes in 1 project, nothing written; rerun with --apply", output)
+        self.assertIn("dry run: 6 changes in 1 project, nothing written; rerun with --apply", output)
 
     def test_migrate_moves_the_log_and_purpose_into_context(self) -> None:
         root = self.make_log_md_layout("older")
@@ -339,6 +350,11 @@ class ProjectInstallTests(unittest.TestCase):
             if line.startswith("- ") and ".context/" in line:
                 self.assertIn(line, template)  # migration writes what creation writes
         self.assertEqual([line for line in agents.splitlines() if "LOG.md" in line], ["- keep LOG.md entries short"])
+        metadata = (root / "project.yaml").read_text(encoding="utf-8")
+        self.assertNotIn("description", metadata)
+        self.assertNotIn("Find out whether it works.", metadata)
+        self.assertIn("created: ", metadata)
+        self.assertIn("\nfields: []\n", metadata)
         self.assertIn("done: move LOG.md to .context/log.md", output)
         self.assertIn("left for you: AGENTS.md line 21 still names LOG.md", output)  # counted after the changes
         self.assertIn("migrated 1 project", output)
@@ -363,6 +379,52 @@ class ProjectInstallTests(unittest.TestCase):
         self.assertIn("Find out whether it works.", (root / "README.md").read_text(encoding="utf-8"))
         self.assertIn("left for you: both LOG.md and .context/log.md exist", output)
         self.assertIn("left for you: README.md's Purpose section differs from .context/purpose.md", output)
+        # project.yaml's copy goes: the README, which stays, keeps the same text
+        self.assertIn("done: project.yaml: remove description, a copy of README.md's Purpose section, which keeps it", output)
+        self.assertIsNone(project.yaml_description(root / "project.yaml"))
+
+    def test_migrate_handles_each_kind_of_project_yaml_description(self) -> None:
+        placeholder = self.create_project("placeholder", description=None)
+        self.describe(placeholder, project.DESCRIPTION_PLACEHOLDER)
+        only_yaml = self.create_project("only-yaml", description=None)
+        (only_yaml / ".context" / "purpose.md").unlink()
+        self.describe(only_yaml, "Track every black box in the lab.")
+        differs = self.create_project("differs", description="An agent's draft of the purpose.")
+        self.describe(differs, "the persons own first words")
+        before = (differs / "project.yaml").read_text(encoding="utf-8")
+
+        output = self.run_migrate(apply=True)
+
+        self.assertIn("project:placeholder\n  done: project.yaml: remove description, the template's placeholder", output)
+        self.assertNotIn("description", (placeholder / "project.yaml").read_text(encoding="utf-8"))
+        self.assertEqual(project.note_text(placeholder / ".context" / "purpose.md"), "")  # still not set
+        self.assertIn("done: write .context/purpose.md from project.yaml's description, verbatim", output)
+        self.assertEqual(
+            (only_yaml / ".context" / "purpose.md").read_text(encoding="utf-8"), "Track every black box in the lab.\n"
+        )
+        self.assertIsNone(project.yaml_description(only_yaml / "project.yaml"))
+        # A description that differs may be the person's own first words: it stays.
+        self.assertEqual((differs / "project.yaml").read_text(encoding="utf-8"), before)
+        self.assertIn(
+            "project:differs\n  left for you: project.yaml's description differs from .context/purpose.md",
+            output,
+        )
+
+    def test_dropping_a_description_keeps_every_other_line(self) -> None:
+        path = self.root / "project.yaml"
+        path.write_text(
+            "schema_version: 1\nname: x\ncreated: 2026-01-01\ndescription: >\n  First paragraph\n  goes on.\n\n"
+            "  Second paragraph.\n\nfields: [physics]\nsync:\n  primary_host: mac\n",
+            encoding="utf-8",
+        )
+        self.assertEqual(project.yaml_description(path), "First paragraph goes on.\nSecond paragraph.".replace("\n", " "))
+
+        project._drop_yaml_description(path)
+
+        self.assertEqual(
+            path.read_text(encoding="utf-8"),
+            "schema_version: 1\nname: x\ncreated: 2026-01-01\n\nfields: [physics]\nsync:\n  primary_host: mac\n",
+        )
 
     def test_migrate_fills_a_placeholder_purpose_from_the_readme(self) -> None:
         root = self.make_log_md_layout("placeheld")
@@ -384,6 +446,7 @@ class ProjectInstallTests(unittest.TestCase):
             ))
         sub = parent / "study"
         (sub / ".context" / "log.md").rename(sub / "LOG.md")
+        self.describe(sub, "Measure it.", name="subproject.yaml")
         bare = self.create_project("bare-project")
         shutil.rmtree(bare / ".context")
 
@@ -391,6 +454,8 @@ class ProjectInstallTests(unittest.TestCase):
 
         self.assertIn("project:host-project/study\n  done: move LOG.md to .context/log.md", output)
         self.assertTrue((sub / ".context" / "log.md").exists())
+        self.assertIn("done: subproject.yaml: remove description, a copy of .context/purpose.md", output)
+        self.assertIsNone(project.yaml_description(sub / "subproject.yaml"))
         self.assertIn("done: create .context/log.md with a first entry", output)
         self.assertIn("done: create .context/purpose.md as a placeholder: not set yet", output)
         self.assertEqual(project.note_text(bare / ".context" / "purpose.md"), "")

@@ -18,7 +18,7 @@ if missing.
 There is no wizard: type and classification come from the parent. ws
 creates `in/`, `code/`, `data/` and `out/`, a `subproject.yaml`, a README,
 `.context/log.md` and `.context/purpose.md` (the `--description` text, or
-not set yet), and a `.gitignore`. It runs `git init` in the subproject and adds the
+not set yet; `subproject.yaml` keeps no copy), and a `.gitignore`. It runs `git init` in the subproject and adds the
 subproject's path to the parent's `.gitignore`, so the parent's history
 stays free of it.
 

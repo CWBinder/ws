@@ -156,12 +156,13 @@ EFFECTS: dict[str, EffectSpec] = {
         external=("pip install -e for package dependencies, the slide generator and configured slide theme packages",),
     ),
     "projects migrate": EffectSpec(
-        reads=("projects/items/<slug>/ and its subprojects: LOG.md, .context/, README.md, AGENTS.md",),
+        reads=("projects/items/<slug>/ and its subprojects: LOG.md, .context/, README.md, AGENTS.md, project.yaml or subproject.yaml",),
         writes=(
             "nothing without --apply",
             "with --apply: moves a root LOG.md to .context/log.md",
-            "with --apply: writes a missing .context/purpose.md from README.md's Purpose section, or as a placeholder",
+            "with --apply: writes a missing .context/purpose.md from README.md's Purpose section, project.yaml's description, or as a placeholder",
             "with --apply: points README.md's Purpose section and the template lines of AGENTS.md and README.md at .context/",
+            "with --apply: removes project.yaml's (or subproject.yaml's) description where it is a placeholder or a copy kept elsewhere",
             "with --apply: starts a missing .context/log.md",
         ),
     ),

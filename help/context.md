@@ -20,6 +20,13 @@ the place cannot have is left out. The briefing opens with the line
 `WORKSPACE BRIEFING: <subject>`, which a session can look for to know it
 has been briefed.
 
+When the object has no purpose yet, one line comes before all five
+sections, since it has to happen before any other work:
+
+```text
+Next: the purpose is not set. Ask the person, then write their words into <folder>/.context/purpose.md
+```
+
 ## Which place
 
 ```bash
@@ -39,7 +46,8 @@ anywhere else                  the workspace root: what is due, what is
                                coming up, which projects are active
 ```
 
-At an object, WHERE YOU ARE adds its REF, folder and description, and its
+At an object, WHERE YOU ARE adds its REF, folder and description (a
+project's description is its purpose, shown under PURPOSE), and its
 neighbours grouped by relation word and direction, with what each word
 means for the work. UPCOMING lists the open tasks joined to it by any edge.
 At the root, UPCOMING lists open tasks due within 7 days or overdue, counts

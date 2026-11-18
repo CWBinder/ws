@@ -21,7 +21,7 @@ Three levels may hold a `.context/` folder:
   directly. ws writes one only where a command says so: creating a project or
   subproject writes its `purpose.md` and `log.md`, setup writes the notes its
   answers give, and `ws projects migrate` moves a project's older notes in
-  ([Project](project.md#context-migration-root-logmd-and-readme-purposes)).
+  ([Project](project.md#context-migration-root-logmd-readme-purposes-and-description)).
   The commands of this layer only read. Notes are canonical, not derived:
   deleting a note loses it.
 - Every note is optional. An empty note counts as absent, and so does one
@@ -64,7 +64,16 @@ object it points to):
 - otherwise the workspace root.
 
 The text form opens with the line `WORKSPACE BRIEFING: <subject>`; a session
-may look for it to know it was briefed. Five sections follow, in this order,
+may look for it to know it was briefed. For an object that owns a folder and
+has no purpose yet (no `purpose.md`, or only the placeholder, and no older
+location), one line comes next, ahead of everything else, because it must
+happen before other work:
+
+```text
+Next: the purpose is not set. Ask the person, then write their words into <folder>/.context/purpose.md
+```
+
+The PURPOSE section still says the same in its place. Five sections follow, in this order,
 the most lasting first, so that a reader who stops early, or a harness that
 keeps only the start, loses the newest history rather than the rules:
 
@@ -72,7 +81,8 @@ keeps only the start, loses the newest history rather than the rules:
    level closes with the owner's name and a pointer to `ws owner`, looked up
    from the records each time a briefing is built (`contracts/objects.md`);
    without an owner the line is left out. For an object,
-   also its REF, folder and description, and its neighbours grouped by
+   also its REF, folder and description (a project's description is its
+   purpose, shown under PURPOSE), and its neighbours grouped by
    relation word and direction with what each means for the work. For a
    store, its contents. For the root, the active projects.
 2. **HOUSE RULES**: the instructions layers from the root down.

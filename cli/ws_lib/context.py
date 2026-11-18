@@ -602,6 +602,14 @@ def instruction_lines(brief: dict) -> list[str]:
     return ["HOUSE RULES", *_layer_lines(brief["instructions"])]
 
 
+def next_lines(brief: dict) -> list[str]:
+    """What must happen before other work, put ahead of everything else: an
+    object that can hold a purpose and has none yet needs it from the person."""
+    if brief["briefing"] != "object" or not brief["folder"] or brief["purpose"] is not None:
+        return []
+    return [f"Next: the purpose is not set. Ask the person, then write their words into {brief['folder']}/{CONTEXT}/purpose.md"]
+
+
 def _keeps_notes(brief: dict) -> bool:
     """Whether the place can hold a purpose and a log: the root and
     folder-backed objects can, stores and record-only objects cannot."""
@@ -612,7 +620,8 @@ def render(brief: dict) -> str:
     """The briefing in reading order, most lasting first: where you are, how
     to work here, what it is for, what waits, what has happened. A section
     the place cannot have is left out unless a note for it exists anyway
-    (a store that keeps a log shows it)."""
+    (a store that keeps a log shows it). What must happen first, if
+    anything, comes before all of them."""
     keeps_notes = _keeps_notes(brief)
     has_purpose = keeps_notes or brief["purpose"] is not None or bool(brief.get("serves"))
     sections = [
@@ -620,6 +629,7 @@ def render(brief: dict) -> str:
             f"WORKSPACE BRIEFING: {brief['subject']}",
             "Where you are, how to work here, what it is for, what is coming up, and what has happened.",
         ],
+        next_lines(brief),
         location_lines(brief),
         instruction_lines(brief),
         purpose_lines(brief) if has_purpose else [],

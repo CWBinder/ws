@@ -50,7 +50,8 @@ the kind, a name, a type, aliases and a description. The type is the
 standard classifier of the kind, such as `invoice` for a document or
 `research` for a project; it may be empty. The name and aliases are what
 search finds the object by. The description is a sentence or two of prose,
-searched but never grouped by.
+searched but never grouped by; a project's description is its purpose, kept
+in its `.context/purpose.md`.
 
 Beyond these, each kind adds its own: classifiers such as a project's
 fields, facts such as a person's emails or a task's due date, and an

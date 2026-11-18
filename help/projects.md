@@ -113,9 +113,11 @@ submodule only when the parent should pin an exact nested commit.
 `status`
 : One of `idea`, `active`, `paused`, `complete`, `archived`.
 
-`created`, `description`
-: The creation date, and a one-paragraph description for the catalog. The
-  purpose itself lives in `.context/purpose.md`.
+`created`
+: The creation date. There is no description here: what the project is
+  for lives in `.context/purpose.md` alone, and search and `ws show` read
+  it from there. Older projects may still carry a `description`, which
+  nothing reads; `ws projects migrate` removes it.
 
 `fields`, `subfields`, `keywords`
 : Broad disciplines and their specialisms from the taxonomy, shared with

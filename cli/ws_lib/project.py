@@ -7,6 +7,7 @@ import re
 import shlex
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 from typing import Optional
 
@@ -89,8 +90,10 @@ CONTEXT_DIR = ".context"
 OLDER_LOG = "LOG.md"
 HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
 README_PURPOSE = re.compile(r"^##\s+Purpose\s*$(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL)
-# What a README's Purpose section says once the purpose lives in .context/.
+# The `description:` value older templates put in project.yaml when no
+# --description was given; it was never a purpose.
 DESCRIPTION_PLACEHOLDER = "One paragraph."
+# What a README's Purpose section says once the purpose lives in .context/.
 README_PURPOSE_POINTER = "See `.context/purpose.md`, the one place the purpose is kept."
 README_CONTEXT_FILES = [
     "- `.context/purpose.md` - what the project is for, in the person's words",
@@ -124,19 +127,30 @@ def write_project_purpose(root: Path, text: str = "", replace: bool = False) -> 
     write_new(path, content)
 
 
-def print_context_guidance(ref: str, purpose_given: bool) -> None:
-    """The few lines creation ends with, for whoever ran it (usually an
-    agent): what it must fill in, and where the full briefing is."""
-    purpose = (
-        "holds the description given at creation; keep it to what the person said"
-        if purpose_given
-        else "not set yet: fill it from what the person said, or ask them"
-    )
+def print_context_guidance(root: Path, ref: str) -> None:
+    """The next steps creation ends with, for whoever ran it (usually an
+    agent): the purpose to get from the person, the log to keep, and the
+    briefing to read. The purpose line quotes what .context/purpose.md now
+    holds, so an agent that wrote or reworded it is told to check it."""
+    purpose = note_text(root / CONTEXT_DIR / "purpose.md")
+    column = " " * 12
     print()
-    print("Every project keeps its context in .context/:")
-    print(f"  purpose.md  {purpose}. The purpose is the person's; never invent it.")
-    print("  log.md      add an entry at the top after each piece of work.")
-    print(f"  briefing    ws context {ref}")
+    print("Next, before any other work:")
+    if purpose:
+        print("  purpose   .context/purpose.md now reads:")
+        quoted = f'"{purpose}"'.split("\n\n")
+        for number, paragraph in enumerate(quoted):
+            if number:
+                print()
+            for line in textwrap.wrap(" ".join(paragraph.split()), 78 - len(column) - 2):
+                print(f"{column}  {line}")
+        print(f"{column}If these are not the person's own words (you wrote or reworded")
+        print(f"{column}them), show them this and correct it.")
+    else:
+        print("  purpose   not set. Ask the person what this project is for and write their")
+        print(f"{column}words into .context/purpose.md. Never invent it.")
+    print("  log       after each piece of work, add an entry at the top of .context/log.md.")
+    print(f"  briefing  run now: ws context {ref}  (house rules and this project's context)")
 
 
 def note_text(path: Path) -> str:
@@ -343,6 +357,47 @@ def _point_readme_purpose(readme: Path) -> None:
         readme.write_text(text[: match.start(1)].rstrip() + body + rest, encoding="utf-8")
 
 
+def _metadata_file(root: Path) -> Path:
+    """project.yaml, or subproject.yaml for a subproject."""
+    path = root / "project.yaml"
+    return path if path.exists() else root / "subproject.yaml"
+
+
+def yaml_description(path: Path) -> str | None:
+    """The `description:` an older project.yaml or subproject.yaml carries, a
+    second copy of the purpose; None when the file has no such key."""
+    if not path.is_file():
+        return None
+    data = yamlish.load_mapping(read(path))
+    if "description" not in data:
+        return None
+    value = data["description"]
+    return "" if value is None else " ".join(str(value).split())
+
+
+def _drop_yaml_description(path: Path) -> None:
+    """Remove the `description:` key and its value lines, keeping every
+    other line as it is."""
+    lines = read(path).splitlines()
+    out: list[str] = []
+    at = 0
+    while at < len(lines):
+        line = lines[at]
+        at += 1
+        if not re.match(r"description\s*:", line):
+            out.append(line)
+            continue
+        # The value continues on indented lines, and on blank lines between them.
+        while at < len(lines):
+            rest = lines[at:]
+            following = next((later for later in rest if later.strip()), "")
+            if lines[at][:1] in {" ", "\t"} or (not lines[at].strip() and following[:1] in {" ", "\t"}):
+                at += 1
+            else:
+                break
+    path.write_text("\n".join(out).rstrip("\n") + "\n", encoding="utf-8")
+
+
 def _move_older_log(root: Path) -> None:
     (root / CONTEXT_DIR).mkdir(exist_ok=True)
     (root / OLDER_LOG).rename(root / CONTEXT_DIR / "log.md")
@@ -353,7 +408,8 @@ def context_layout_plan(root: Path, key: str, title: str) -> tuple[list[tuple[st
 
     Returns (steps, left): each step is a (description, action) pair, run in
     order; `left` names what migration will not decide, for a person to do
-    by hand. Steps move or copy content and fix pointers; none deletes it."""
+    by hand. Steps move or copy content and fix pointers; the only thing one
+    removes is a copy whose text stays in its one home."""
     steps: list[tuple[str, object]] = []
     left: list[str] = []
     context = root / CONTEXT_DIR
@@ -373,19 +429,17 @@ def context_layout_plan(root: Path, key: str, title: str) -> tuple[list[tuple[st
 
     purpose_path = context / "purpose.md"
     in_readme = readme_purpose(readme)
+    # project.yaml's description: a copy of the purpose from when creation
+    # wrote it there too, or the template's placeholder.
+    metadata = _metadata_file(root)
+    in_yaml = yaml_description(metadata)
+    yaml_purpose = "" if in_yaml in {None, "", DESCRIPTION_PLACEHOLDER} else in_yaml
     purpose_text = note_text(purpose_path)
-    if not purpose_text and in_readme:
-        # Absent, empty or still the placeholder: the README holds the purpose.
-        steps.append((
-            f"write {CONTEXT_DIR}/purpose.md from README.md's Purpose section, verbatim",
-            lambda: write_project_purpose(root, in_readme, replace=True),
-        ))
-        purpose_text = in_readme
-    elif not purpose_path.exists():
-        steps.append((
-            f"create {CONTEXT_DIR}/purpose.md as a placeholder: not set yet",
-            lambda: write_project_purpose(root),
-        ))
+    if not purpose_text:
+        # Absent, empty or still the placeholder: an older home holds it.
+        older = [("README.md's Purpose section", in_readme), (f"{metadata.name}'s description", yaml_purpose)]
+        step, purpose_text = _purpose_step(root, older)
+        steps.extend([step] if step else [])
     if in_readme and _same_text(in_readme, purpose_text):
         steps.append((
             f"README.md: replace the Purpose section, a copy of {CONTEXT_DIR}/purpose.md, with a pointer to it",
@@ -396,6 +450,11 @@ def context_layout_plan(root: Path, key: str, title: str) -> tuple[list[tuple[st
             f"README.md's Purpose section differs from {CONTEXT_DIR}/purpose.md: "
             "settle the purpose there with the person, then point README.md at it"
         )
+
+    if in_yaml is not None:
+        step, note = _description_step(metadata, in_yaml, purpose_text, in_readme)
+        steps.extend([step] if step else [])
+        left.extend([note] if note else [])
 
     for path, mapping in ((agents, OLDER_LOG_AGENTS_LINES), (readme, OLDER_LOG_README_LINES)):
         count = _count_lines(path, mapping)
@@ -408,6 +467,44 @@ def context_layout_plan(root: Path, key: str, title: str) -> tuple[list[tuple[st
         for number in _older_log_mentions(path, mapping):
             left.append(f"{path.name} line {number} still names {OLDER_LOG}: edit it by hand")
     return steps, left
+
+
+def _purpose_step(root: Path, sources: list[tuple[str, str]]) -> tuple[tuple[str, object] | None, str]:
+    """The step that fills a `.context/purpose.md` holding no purpose yet,
+    from the first older home that has one, else with the placeholder where
+    the file is missing; and the purpose text it leaves."""
+    for label, text in sources:
+        if text:
+            step = (
+                f"write {CONTEXT_DIR}/purpose.md from {label}, verbatim",
+                lambda text=text: write_project_purpose(root, text, replace=True),
+            )
+            return step, text
+    if (root / CONTEXT_DIR / "purpose.md").exists():
+        return None, ""
+    return (f"create {CONTEXT_DIR}/purpose.md as a placeholder: not set yet", lambda: write_project_purpose(root)), ""
+
+
+def _description_step(
+    metadata: Path, in_yaml: str, purpose_text: str, in_readme: str,
+) -> tuple[tuple[str, object] | None, str | None]:
+    """The step that removes a metadata file's `description`, once nothing
+    is lost by removing it, or the note that leaves it for the person."""
+
+    def drop() -> None:
+        _drop_yaml_description(metadata)
+
+    name = metadata.name
+    if in_yaml in {"", DESCRIPTION_PLACEHOLDER}:
+        return (f"{name}: remove description, the template's placeholder", drop), None
+    if _same_text(in_yaml, purpose_text):
+        return (f"{name}: remove description, a copy of {CONTEXT_DIR}/purpose.md", drop), None
+    if in_readme and _same_text(in_yaml, in_readme):
+        return (f"{name}: remove description, a copy of README.md's Purpose section, which keeps it", drop), None
+    return None, (
+        f"{name}'s description differs from {CONTEXT_DIR}/purpose.md: settle the purpose "
+        f"there with the person, then delete description from {name}"
+    )
 
 
 def _same_text(left: str, right: str) -> bool:
@@ -1525,7 +1622,8 @@ def command_project_show(args: argparse.Namespace) -> None:
         print("  -")
 
 
-# Keys `ws edit project:<key>` may insert, in file order. `description` is a
+# Keys `ws edit project:<key>` may insert, in file order. `description`, which
+# project.yaml files from before `ws projects migrate` may still carry, is a
 # folded block, so it is never an anchor: a key inserted after it would land
 # inside the block.
 PROJECT_EDIT_KEY_ORDER = ("schema_version", "name", "title", "type", "status", "created", "fields", "subfields", "keywords")
@@ -1724,13 +1822,13 @@ def command_project_sub(args: argparse.Namespace) -> None:
     if root.exists():
         fail(f"already exists: {rel_home(root)}")
     venv_rel = "/".join([".."] * len(rel_parts)) + "/.venv"
-    description = args.description or DESCRIPTION_PLACEHOLDER
     root.mkdir(parents=True)
     make_project_dirs(root, SUBPROJECT_DIRS)
+    # No description here: the purpose has one home, .context/purpose.md.
     write_new(
         root / "subproject.yaml",
         f"schema_version: 1\nname: {name}\ntype: subproject\nparent: {parent_name}\n"
-        f"created: {today()}\nvenv: {venv_rel}\ndescription: >\n  {description}\n",
+        f"created: {today()}\nvenv: {venv_rel}\n",
     )
     write_new(root / ".gitignore", SUBPROJECT_GITIGNORE)
     write_new(
@@ -1760,7 +1858,7 @@ def command_project_sub(args: argparse.Namespace) -> None:
         print(f"ignored by parent: {ignore_line}")
     print(f"subproject ready: {rel_home(root)}")
     print(f"uses the parent env — run `{venv_rel}/bin/python ...` (or `source {venv_rel}/bin/activate`) from {rel_home(root)}")
-    print_context_guidance(f"project:{parent_name}/{'/'.join(rel_parts)}", bool(args.description))
+    print_context_guidance(root, f"project:{parent_name}/{'/'.join(rel_parts)}")
 
 
 def command_new_project(args: argparse.Namespace) -> None:
@@ -1808,7 +1906,7 @@ def command_new_project(args: argparse.Namespace) -> None:
     title = project_title(name, args.title)
     project_type = args.type or project_types[0]
     status = args.status or "active"
-    description = args.description or DESCRIPTION_PLACEHOLDER
+    description = args.description or ""
     fields = args.field or []
     subfields = getattr(args, "subfield", None) or []
     keywords = args.keyword or []
@@ -1827,7 +1925,7 @@ def command_new_project(args: argparse.Namespace) -> None:
     if should_prompt_for_project_setup(args):
         title = ask("Title", title)
         project_type = ask_choice("Type", project_types, project_type, taxonomy_key="type")
-        description = ask("Description", description)
+        description = ask("Purpose, in the person's words (Enter leaves it not set)", description)
         fields = ask_list("Fields", allowed_fields, fields, taxonomy_key="fields")
         available_subfields = compatible_subfields(fields, load_taxonomy())
         if available_subfields:
@@ -1864,9 +1962,6 @@ def command_new_project(args: argparse.Namespace) -> None:
         python_enabled = True
     if python_enabled:
         has_code = True
-    # Only a description someone gave becomes the purpose; the default
-    # stays in project.yaml and .context/purpose.md starts as not set yet.
-    purpose_given = description.strip() not in {"", DESCRIPTION_PLACEHOLDER}
 
     if project_type not in project_types:
         fail(f"type must be one of: {', '.join(project_types)}")
@@ -1898,8 +1993,6 @@ title: {yaml_scalar(title)}
 type: {project_type}
 status: {status}
 created: {today()}
-description: >
-  {description}
 
 fields: {yaml_list(fields)}
 subfields: {yaml_list(subfields)}
@@ -1952,7 +2045,9 @@ sync:
     copy_template("AGENTS.md", root / "AGENTS.md", replacements)
     write_claude_md(root)
     write_project_log(root, title, "- Did: created the project.")
-    write_project_purpose(root, description if purpose_given else "")
+    # The purpose has one home: .context/purpose.md, not project.yaml or
+    # README.md. Without a description it starts as not set yet.
+    write_project_purpose(root, description)
     copy_template("gitignore", root / ".gitignore", replacements)
     if python_enabled:
         create_python_project_files(root, name)
@@ -1970,7 +2065,7 @@ sync:
         _relate_project_links(relpath, dependency_projects, [])
     print(f"created: project:{name}")
     print(f"project ready: {rel_home(root)}")
-    print_context_guidance(f"project:{relpath}", purpose_given)
+    print_context_guidance(root, f"project:{relpath}")
 
 
 def command_project_install(args: argparse.Namespace) -> None:
@@ -2238,8 +2333,9 @@ Generated files:
   README.md     human-readable overview
   AGENTS.md     project-wide agent instructions
   CLAUDE.md     symlink to AGENTS.md for Claude Code
-  .context/purpose.md  what the project is for: the --description text,
-                       or not set yet until filled from the person's words
+  .context/purpose.md  what the project is for, its one home: the
+                       --description text, or not set yet until filled
+                       from the person's words
   .context/log.md      project log, newest entry first
   .gitignore    local ignore rules
 
@@ -2286,7 +2382,11 @@ More detail:
         "--status", choices=PROJECT_STATUSES, metavar="STATUS",
         help=f"one of: {', '.join(PROJECT_STATUSES)}; defaults to active",
     )
-    new_project.add_argument("--description", help="one-paragraph purpose written into project.yaml and README.md")
+    new_project.add_argument(
+        "--description",
+        help="what the project is for, in the person's words; written into .context/purpose.md, "
+        "the purpose's one home (without it, the purpose starts as not set)",
+    )
     new_project.add_argument(
         "--field", choices=fields, action="append", metavar="FIELD",
         help=f"repeatable; one of: {', '.join(fields)}; defaults to {fields[0]} (extend with `ws projects add-field`)",
@@ -2468,7 +2568,11 @@ Ingestion (document, person, organisation, event, literature) lives under
     subproject_cmd = create_sub.add_parser("subproject", help="create a subproject inside a project (shares the parent's .venv)")
     subproject_cmd.add_argument("name", nargs="+", help="subproject name; words are slugified; may be a path into a grouping folder, e.g. `shuttling/corner`")
     subproject_cmd.add_argument("--project", dest="project_ref", metavar="REF", help="parent project REF; defaults to the enclosing project (run inside a grouping folder to create the subproject there)")
-    subproject_cmd.add_argument("--description", help="one-paragraph purpose")
+    subproject_cmd.add_argument(
+        "--description",
+        help="what the subproject is for, in the person's words; written into .context/purpose.md "
+        "(without it, the purpose starts as not set)",
+    )
     add_projects_dir_arg(subproject_cmd)
     subproject_cmd.set_defaults(func=command_project_sub)
     return create_sub

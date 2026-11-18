@@ -57,6 +57,12 @@ def searchable_data(obj: catalog.ObjectRef) -> dict:
         "id", "schema_version", "created_at", "updated_at", "redirect_to",
     }
     data = {key: value for key, value in (obj.data or {}).items() if key not in hidden}
+    if obj.type == "project" and obj.path:
+        # A project's description is its purpose, kept in .context/purpose.md
+        # alone (contracts/project.md), so that is what search reads.
+        from ws_lib import project
+
+        data["description"] = project.note_text(obj.path.parent / project.CONTEXT_DIR / "purpose.md")
     if obj.type == "resource" and obj.path:
         root = obj.path.parent
         data["files"] = [
