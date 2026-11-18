@@ -139,7 +139,7 @@ data/     intermediate results
 out/      finished outputs
 docs/     stable documentation
 tmp/      disposable scratch
-LOG.md    what happened, newest first
+.context/ purpose.md (what it is for) and log.md (what happened, newest first)
 ```
 
 ## Path Portability

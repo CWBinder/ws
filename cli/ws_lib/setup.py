@@ -92,7 +92,7 @@ HOLDS = (
         ),
         howto="ws projects add-field FIELD\nws projects add-subfield FIELD SUBFIELD\n"
         "ws projects add-type TYPE\nws create project NAME --non-interactive\n"
-        "Add its purpose to that project's .context/purpose.md.",
+        "Write its purpose, in the person's words, into that project's .context/purpose.md in place of the placeholder.",
     ),
     Step(
         "literature", "papers and books",
@@ -305,9 +305,10 @@ def _made_ref(output: str, kind: str) -> str:
 
 
 def _add_note(path: Path, note: str) -> None:
-    """Add to one of the notes a briefing reads, keeping what is there."""
+    """Add to one of the notes a briefing reads, keeping what is there; a
+    placeholder (a note holding only comments) is replaced."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    kept = path.read_text(encoding="utf-8").rstrip() if path.is_file() else ""
+    kept = path.read_text(encoding="utf-8").rstrip() if project.note_text(path) else ""
     path.write_text(f"{kept}\n\n{note}\n" if kept else f"{note}\n", encoding="utf-8")
 
 

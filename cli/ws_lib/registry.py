@@ -138,22 +138,32 @@ EFFECTS: dict[str, EffectSpec] = {
     ),
     "projects create": EffectSpec(
         reads=("project taxonomy", "project templates"),
-        writes=("projects/items/<slug>/",),
+        writes=("projects/items/<slug>/, with .context/log.md and .context/purpose.md",),
         relations=("creates depends-on/related/references edges for declared links; install dependencies are recorded as project_dependencies facts",),
     ),
     "projects create-subproject": EffectSpec(
         reads=("parent project metadata",),
-        writes=("projects/items/<parent>/<slug>/",),
+        writes=("projects/items/<parent>/<slug>/, with .context/log.md and .context/purpose.md",),
     ),
     "projects install": EffectSpec(
         reads=("projects/items/<slug>/project.yaml", "dependency projects' package_install recipes", "packages/slide_factory in the ws checkout", "slides.themes in the ws configuration"),
         writes=(
             "projects/items/<slug>/project.yaml (capability flags, runtime, project_dependencies)",
             "capability folders, pyproject.toml, and .venv/ inside the project",
-            "missing standard layout: LOG.md, in/, out/, slides/, .gitignore rules and AGENTS.md log rules",
+            "missing standard layout: .context/log.md, .context/purpose.md, in/, out/, slides/, .gitignore rules and AGENTS.md context rules",
         ),
         relations=("creates depends-on edges for newly recorded --use-project dependencies",),
         external=("pip install -e for package dependencies, the slide generator and configured slide theme packages",),
+    ),
+    "projects migrate": EffectSpec(
+        reads=("projects/items/<slug>/ and its subprojects: LOG.md, .context/, README.md, AGENTS.md",),
+        writes=(
+            "nothing without --apply",
+            "with --apply: moves a root LOG.md to .context/log.md",
+            "with --apply: writes a missing .context/purpose.md from README.md's Purpose section, or as a placeholder",
+            "with --apply: points README.md's Purpose section and the template lines of AGENTS.md and README.md at .context/",
+            "with --apply: starts a missing .context/log.md",
+        ),
     ),
     "tasks create": EffectSpec(writes=("tasks/<key>.yaml",)),
     "documents add": EffectSpec(
@@ -349,7 +359,7 @@ EFFECTS: dict[str, EffectSpec] = {
             ".context/ notes from the workspace root down to the object (whereami, instructions, purpose, log)",
             "context/ texts shipped in the ws checkout",
             "records and relations",
-            "a project's README.md Purpose section and root LOG.md where .context/ has none",
+            "a project's README.md Purpose section and root LOG.md where .context/ has none (older locations)",
         ),
     ),
     "owner": EffectSpec(reads=("logistics/people/ records", "profile/items/ records")),

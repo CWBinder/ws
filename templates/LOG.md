@@ -1,7 +1,7 @@
 # Log — <Project Title>
 
-Newest entry first. Each working session that changes the project, or decides
-something about it, adds one entry at the top before it ends:
+Newest entry first. After each piece of work that changes the project, or
+decides something about it, add one entry at the top:
 
     ## YYYY-MM-DD · host
     - Did: what changed

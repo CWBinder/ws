@@ -68,7 +68,8 @@ Assistant-level configuration (Claude Code agents, skills, memory) lives outside
 - Do not move or sync large data unless a project rule says to do so.
 - Respect Git boundaries: workspace root is not a Git repo; managed projects
   and external source folders may be separate repos.
-- In projects, prefer the standard folders: `in/` for inputs, `data/` for intermediate results, `out/` for finished outputs, `docs/` for stable documentation, `tmp/` for disposable scratch. Add a new top-level folder only when none fits, and record it in the project's `LOG.md`.
-- Before ending a working session on a project, add an entry at the top of its `LOG.md`.
+- In projects, prefer the standard folders: `in/` for inputs, `data/` for intermediate results, `out/` for finished outputs, `docs/` for stable documentation, `tmp/` for disposable scratch. Add a new top-level folder only when none fits, and record it in the project's `.context/log.md`.
+- After each piece of work on a project, add an entry at the top of its `.context/log.md`.
+- A project's purpose lives in `.context/purpose.md` alone. Fill it from the person's words, or ask them; never invent it.
 - Read project-local `AGENTS.md` before modifying a project.
 - Ask before destructive operations or broad reorganizations.

@@ -12,7 +12,7 @@ from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from ws_lib import catalog, context, indexing, registry, relations
+from ws_lib import catalog, context, indexing, project, registry, relations
 
 
 LOG = """# Log — Alpha
@@ -212,6 +212,34 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(brief["log"]["entries"][0]["heading"], "2026-05-05 · mbp")
         # `ws show` reports only the object's own .context/ notes.
         self.assertEqual(context.show_summary(catalog.resolve("project:beta")), {})
+        text = "\n".join(context.purpose_lines(brief) + context.log_lines(brief))
+        self.assertEqual(text.count("`ws projects migrate` moves it"), 2)
+
+    def test_a_placeholder_purpose_reads_as_not_set_yet(self) -> None:
+        gamma = self.project("gamma", "Gamma", f"## Purpose\n\n{project.README_PURPOSE_POINTER}\n")
+        (gamma / ".context").mkdir()
+        (gamma / ".context" / "purpose.md").write_text(
+            (project.TEMPLATES / "purpose.md").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
+        brief = self.brief(gamma)
+
+        self.assertIsNone(brief["purpose"], "neither the placeholder nor the README's pointer is a purpose")
+        text = "\n".join(context.purpose_lines(brief))
+        self.assertIn(f"not set yet: {context._home_path(gamma)}/.context/purpose.md holds it", text)
+        self.assertIn("ask them, never invent it", text)
+        self.assertEqual(context.show_summary(catalog.resolve("project:gamma")), {})
+
+    def test_comments_are_left_out_of_a_filled_purpose(self) -> None:
+        delta = self.project("delta", "Delta")
+        (delta / ".context").mkdir()
+        (delta / ".context" / "purpose.md").write_text(
+            "<!-- Not set yet. -->\nFind out whether it scales.\n", encoding="utf-8"
+        )
+
+        brief = self.brief(delta)
+
+        self.assertEqual(brief["purpose"]["text"], "Find out whether it scales.")
 
     def test_a_record_only_object_has_neighbours_but_no_purpose_or_log(self) -> None:
         objects = catalog.all_objects()

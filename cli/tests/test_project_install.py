@@ -14,6 +14,49 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ws_lib import project
 
+LOG_MD_AGENTS = """# AGENTS — {name}
+
+Read first:
+- README.md
+- LOG.md (newest entries first; read until you know the current state)
+- project.yaml
+- this file
+
+Folders:
+- in/: inputs the work consumes (device designs, external data, parameters)
+- put material in the folder that fits; add a new top-level folder only when none does, and record it with the reason in LOG.md
+
+Log:
+- before ending a working session, add an entry at the top of LOG.md: date, host, what you did, what was decided and why, what comes next
+
+Rules:
+- ask before destructive changes
+- keep LOG.md entries short
+
+Agent instructions:
+- this file is project-wide context
+- do not store agent memory or session state in this file; that goes in LOG.md
+"""
+
+LOG_MD_README = """# {name}
+
+## Purpose
+
+{purpose}
+
+## Current State
+
+- Status: `active`
+
+## Important Files
+
+- `AGENTS.md` - project-wide instructions for agents and humans
+- `LOG.md` - what happened, newest first; read it when resuming
+- `README.md` - human-readable overview
+"""
+
+OLD_LOG = "# Log — Old\n\n## 2026-11-01 · mbp\n\n- Did: created the project.\n"
+
 
 class ProjectInstallTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -157,10 +200,11 @@ class ProjectInstallTests(unittest.TestCase):
         self.assertIn("nothing recorded to install", output)
 
     def make_legacy_layout(self, name: str) -> Path:
-        """A project as the previous templates left it: no LOG.md, in/ or
-        out/, `out/` ignored wholesale, and the old AGENTS.md rules."""
+        """A project as the templates before the project log left it: no
+        log or purpose, no in/ or out/, `out/` ignored wholesale, and the old
+        AGENTS.md rules."""
         root = self.create_project(name)
-        (root / "LOG.md").unlink()
+        shutil.rmtree(root / ".context")
         for folder in ("in", "out"):
             (root / folder / ".gitkeep").unlink()
             (root / folder).rmdir()
@@ -185,8 +229,10 @@ class ProjectInstallTests(unittest.TestCase):
 
         _calls, output = self.run_install(name="legacy-layout")
 
-        log = (root / "LOG.md").read_text(encoding="utf-8")
+        log = (root / ".context" / "log.md").read_text(encoding="utf-8")
         self.assertIn("- Did: started this log. Earlier history is in the git log and README.md.", log)
+        self.assertFalse((root / "LOG.md").exists())
+        self.assertEqual(project.note_text(root / ".context" / "purpose.md"), "")  # placeholder
         for folder in ("in", "out"):
             self.assertTrue((root / folder / ".gitkeep").exists(), folder)
         ignore = (root / ".gitignore").read_text(encoding="utf-8").splitlines()
@@ -195,15 +241,18 @@ class ProjectInstallTests(unittest.TestCase):
                          ["out/**", "!out/**/", "!out/**/*.md", "!out/**/.gitkeep"])
         self.assertIn("slides/**/*.pptx", ignore)
         self.assertNotIn("# Generated outputs and scratch", ignore)
-        self.assertEqual(output.count("LOG.md"), 1)
+        self.assertEqual(output.count(".context/log.md"), 1)
+        self.assertNotIn("ws projects migrate", output)
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertNotIn("put transient notes in notes/", agents)
         self.assertNotIn("unauthorized", agents)
-        self.assertIn("- README.md\n- LOG.md (newest entries first", agents)
+        self.assertIn("- README.md\n- .context/purpose.md (what this project is for", agents)
+        self.assertIn("`ws context project:legacy-layout` for the full briefing", agents)
         self.assertLess(agents.index("Folders:"), agents.index("Rules:"))
-        self.assertIn("Log:\n- before ending a working session", agents)
+        self.assertIn("Context:\n- .context/purpose.md says what the project is for", agents)
         self.assertIn("- never push to main", agents)  # project-specific rules survive
-        self.assertIn("session state in this file; that goes in LOG.md", agents)
+        self.assertIn("session state in this file; that goes in .context/log.md", agents)
+        self.assertNotIn("LOG.md", agents)
         # additive only: nothing moved or deleted
         self.assertEqual((root / "notes" / "keep.md").read_text(encoding="utf-8"), "old notes\n")
         self.assertIn("nothing recorded to install", output)
@@ -211,7 +260,8 @@ class ProjectInstallTests(unittest.TestCase):
     def test_layout_migration_is_idempotent(self) -> None:
         root = self.make_legacy_layout("legacy-twice")
         self.run_install(name="legacy-twice")
-        snapshot = {name: (root / name).read_text(encoding="utf-8") for name in ("LOG.md", ".gitignore", "AGENTS.md")}
+        names = (".context/log.md", ".context/purpose.md", ".gitignore", "AGENTS.md")
+        snapshot = {name: (root / name).read_text(encoding="utf-8") for name in names}
 
         _calls, output = self.run_install(name="legacy-twice")
 
@@ -228,7 +278,123 @@ class ProjectInstallTests(unittest.TestCase):
 
         agents = (root / "AGENTS.md").read_text(encoding="utf-8")
         self.assertTrue(agents.startswith("# Custom\n\nOur own instructions.\n\nFolders:\n"))
-        self.assertIn("Log:\n", agents)
+        self.assertIn("Context:\n", agents)
+
+    def make_log_md_layout(self, name: str, purpose: str = "Find out whether it works.") -> Path:
+        """A project as creation left it while the log was a root LOG.md and
+        the purpose sat in the README, with one hand-written LOG.md rule."""
+        root = self.create_project(name)
+        shutil.rmtree(root / ".context")
+        (root / "LOG.md").write_text(OLD_LOG, encoding="utf-8")
+        (root / "README.md").write_text(LOG_MD_README.format(name=name, purpose=purpose), encoding="utf-8")
+        (root / "AGENTS.md").write_text(LOG_MD_AGENTS.format(name=name), encoding="utf-8")
+        return root
+
+    def run_migrate(self, apply: bool = False) -> str:
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            project.command_project_migrate(argparse.Namespace(refs=[], apply=apply, projects_dir=None))
+        return stdout.getvalue()
+
+    def snapshot(self, root: Path) -> dict:
+        return {
+            path.relative_to(root).as_posix(): path.read_bytes()
+            for path in sorted(root.rglob("*"))
+            if path.is_file() and ".git" not in path.relative_to(root).parts
+        }
+
+    def test_migrate_without_apply_prints_the_plan_and_writes_nothing(self) -> None:
+        root = self.make_log_md_layout("older")
+        before = self.snapshot(root)
+
+        output = self.run_migrate()
+
+        self.assertEqual(self.snapshot(root), before)
+        self.assertIn("project:older\n  will: move LOG.md to .context/log.md\n", output)
+        self.assertIn("will: write .context/purpose.md from README.md's Purpose section, verbatim", output)
+        self.assertIn("will: README.md: replace the Purpose section", output)
+        self.assertIn("will: AGENTS.md: rewrite 5 template lines to name .context/ instead of LOG.md", output)
+        self.assertIn("will: README.md: rewrite 1 template line to name .context/ instead of LOG.md", output)
+        self.assertIn("left for you: AGENTS.md line 18 still names LOG.md: edit it by hand", output)
+        self.assertIn("dry run: 5 changes in 1 project, nothing written; rerun with --apply", output)
+
+    def test_migrate_moves_the_log_and_purpose_into_context(self) -> None:
+        root = self.make_log_md_layout("older")
+
+        output = self.run_migrate(apply=True)
+
+        self.assertFalse((root / "LOG.md").exists())
+        self.assertEqual((root / ".context" / "log.md").read_text(encoding="utf-8"), OLD_LOG)
+        self.assertEqual((root / ".context" / "purpose.md").read_text(encoding="utf-8"), "Find out whether it works.\n")
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        self.assertIn(f"## Purpose\n\n{project.README_PURPOSE_POINTER}\n\n## Current State", readme)
+        self.assertNotIn("Find out whether it works.", readme)
+        self.assertNotIn("LOG.md", readme)
+        for line in project.README_CONTEXT_FILES:
+            self.assertIn(line, readme)
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        template = (project.TEMPLATES / "AGENTS.md").read_text(encoding="utf-8").replace("<project-name>", "older")
+        for block in ("Context:", "- README.md\n- .context/purpose.md", "`ws context project:older`"):
+            self.assertIn(block, agents)
+        for line in agents.splitlines():
+            if line.startswith("- ") and ".context/" in line:
+                self.assertIn(line, template)  # migration writes what creation writes
+        self.assertEqual([line for line in agents.splitlines() if "LOG.md" in line], ["- keep LOG.md entries short"])
+        self.assertIn("done: move LOG.md to .context/log.md", output)
+        self.assertIn("left for you: AGENTS.md line 21 still names LOG.md", output)  # counted after the changes
+        self.assertIn("migrated 1 project", output)
+
+        after = self.snapshot(root)
+        again = self.run_migrate(apply=True)
+        self.assertEqual(self.snapshot(root), after, "a second run changes nothing")
+        self.assertNotIn("done:", again)
+        self.assertIn("nothing to move; what is listed is left for you", again)
+
+    def test_migrate_leaves_what_it_cannot_decide(self) -> None:
+        root = self.make_log_md_layout("tangled")
+        (root / ".context").mkdir()
+        (root / ".context" / "log.md").write_text("# Log\n", encoding="utf-8")
+        (root / ".context" / "purpose.md").write_text("A different purpose.\n", encoding="utf-8")
+
+        output = self.run_migrate(apply=True)
+
+        self.assertTrue((root / "LOG.md").exists())
+        self.assertEqual((root / ".context" / "log.md").read_text(encoding="utf-8"), "# Log\n")
+        self.assertEqual((root / ".context" / "purpose.md").read_text(encoding="utf-8"), "A different purpose.\n")
+        self.assertIn("Find out whether it works.", (root / "README.md").read_text(encoding="utf-8"))
+        self.assertIn("left for you: both LOG.md and .context/log.md exist", output)
+        self.assertIn("left for you: README.md's Purpose section differs from .context/purpose.md", output)
+
+    def test_migrate_fills_a_placeholder_purpose_from_the_readme(self) -> None:
+        root = self.make_log_md_layout("placeheld")
+        (root / ".context").mkdir()
+        (root / ".context" / "purpose.md").write_text(
+            (project.TEMPLATES / "purpose.md").read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
+        self.run_migrate(apply=True)
+
+        self.assertEqual((root / ".context" / "purpose.md").read_text(encoding="utf-8"), "Find out whether it works.\n")
+        self.assertEqual(project.readme_purpose(root / "README.md"), "")
+
+    def test_migrate_covers_subprojects_and_starts_missing_notes(self) -> None:
+        parent = self.create_project("host-project")
+        with contextlib.redirect_stdout(io.StringIO()):
+            project.command_project_sub(argparse.Namespace(
+                name=["study"], project="host-project", description="Measure it.", projects_dir=None,
+            ))
+        sub = parent / "study"
+        (sub / ".context" / "log.md").rename(sub / "LOG.md")
+        bare = self.create_project("bare-project")
+        shutil.rmtree(bare / ".context")
+
+        output = self.run_migrate(apply=True)
+
+        self.assertIn("project:host-project/study\n  done: move LOG.md to .context/log.md", output)
+        self.assertTrue((sub / ".context" / "log.md").exists())
+        self.assertIn("done: create .context/log.md with a first entry", output)
+        self.assertIn("done: create .context/purpose.md as a placeholder: not set yet", output)
+        self.assertEqual(project.note_text(bare / ".context" / "purpose.md"), "")
+        self.assertIn("migrated 2 projects", output)
 
     def test_unknown_feature_fails(self) -> None:
         self.create_project("typo-target")

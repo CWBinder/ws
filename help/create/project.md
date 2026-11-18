@@ -28,8 +28,22 @@ says otherwise (`ws help configuration`).
 ## What it creates
 
 Always: `project.yaml`, `README.md`, `AGENTS.md`, a `CLAUDE.md` symlink to
-it, `LOG.md` with a first entry, `.gitignore`, a git repository, and the
-`in/` and `out/` folders.
+it, `.context/log.md` with a first entry, `.context/purpose.md`, `.gitignore`,
+a git repository, and the `in/` and `out/` folders.
+
+`.context/purpose.md` is the one home of the project's purpose; the README
+points there. It holds the `--description` text, or without one a
+placeholder that `ws context` reports as not set yet. Either way the
+purpose is the person's: fill it from what they said, or ask them.
+
+The command ends with a short note for whoever ran it, often an agent:
+
+```text
+Every project keeps its context in .context/:
+  purpose.md  not set yet: fill it from what the person said, or ask them. The purpose is the person's; never invent it.
+  log.md      add an entry at the top after each piece of work.
+  briefing    ws context project:my-project
+```
 
 With a capability, its folder and setup:
 

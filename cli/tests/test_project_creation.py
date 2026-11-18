@@ -72,7 +72,9 @@ class ProjectCreationTests(unittest.TestCase):
             self.assertTrue((sub / folder).is_dir())
             self.assertTrue((sub / folder / ".gitkeep").exists())
         self.assertFalse((sub / "results").exists())
-        self.assertIn("created the subproject inside `studies`", (sub / "LOG.md").read_text())
+        self.assertIn("created the subproject inside `studies`", (sub / ".context" / "log.md").read_text())
+        self.assertFalse((sub / "LOG.md").exists())
+        self.assertEqual(project.note_text(sub / ".context" / "purpose.md"), "")  # no description: not set yet
         self.assertFalse((sub / ".venv").exists())
         self.assertTrue((sub / ".git").is_dir())
         self.assertIn(
@@ -143,7 +145,7 @@ class ProjectCreationTests(unittest.TestCase):
 
     def test_check_flags_missing_log_and_notes_missing_standard_folders(self) -> None:
         root = self.create_project("oldlayout")
-        (root / "LOG.md").unlink()
+        (root / ".context" / "log.md").unlink()
         (root / "in" / ".gitkeep").unlink()
         (root / "in").rmdir()
         (root / "notes").mkdir()  # extra folders are allowed and never flagged
@@ -151,9 +153,24 @@ class ProjectCreationTests(unittest.TestCase):
         out, code = self.check_output()
 
         self.assertEqual(code, 1)
-        self.assertIn("problem: missing LOG.md (run `ws projects install project:oldlayout`)", out)
+        self.assertIn(
+            "problem: context not in .context/ yet (preview with `ws projects migrate project:oldlayout`): "
+            "create .context/log.md with a first entry",
+            out,
+        )
         self.assertIn("note: missing standard folder in/", out)
         self.assertNotIn("notes", out)
+
+    def test_check_flags_a_root_log_and_notes_an_unset_purpose(self) -> None:
+        older = self.create_project("older-log")
+        (older / ".context" / "log.md").rename(older / "LOG.md")
+        self.create_project("unset-purpose", description=None)
+
+        out, code = self.check_output()
+
+        self.assertEqual(code, 1)
+        self.assertIn("move LOG.md to .context/log.md", out)
+        self.assertIn("unset-purpose:\n  note: purpose not set yet: fill .context/purpose.md from what the person said", out)
 
     def make_legacy_nested_project(self, relpath: str) -> Path:
         """Hand-build a nested project: creation refuses paths, but discovery
@@ -319,24 +336,88 @@ class ProjectCreationTests(unittest.TestCase):
     def test_default_scaffold_is_minimal(self) -> None:
         root = self.create_project("minimal-project")
 
-        for filename in ["project.yaml", "README.md", "AGENTS.md", "CLAUDE.md", "LOG.md", ".gitignore"]:
+        for filename in [
+            "project.yaml", "README.md", "AGENTS.md", "CLAUDE.md", ".context/log.md", ".context/purpose.md", ".gitignore",
+        ]:
             self.assertTrue((root / filename).exists(), filename)
+        self.assertFalse((root / "LOG.md").exists())
         self.assertTrue((root / ".git").is_dir())
-        optional_dirs = {path.name for path in root.iterdir() if path.is_dir() and path.name != ".git"}
+        optional_dirs = {path.name for path in root.iterdir() if path.is_dir() and path.name not in {".git", ".context"}}
         self.assertEqual(optional_dirs, {"in", "out"})
         for folder in optional_dirs:
             self.assertTrue((root / folder / ".gitkeep").exists(), folder)
 
     def test_log_starts_with_a_dated_creation_entry(self) -> None:
         root = self.create_project("logged-project")
-        log = (root / "LOG.md").read_text(encoding="utf-8")
+        log = (root / ".context" / "log.md").read_text(encoding="utf-8")
 
         self.assertTrue(log.startswith("# Log — Logged Project\n"))
         self.assertIn(f"## {project.today()} · {project.paths.HOST}\n\n- Did: created the project.", log)
         self.assertIn("## YYYY-MM-DD · host", log)  # the format example stays a template
         self.assertNotIn("<log-", log)
-        self.assertIn("LOG.md", (root / "AGENTS.md").read_text(encoding="utf-8"))
-        self.assertIn("`LOG.md`", (root / "README.md").read_text(encoding="utf-8"))
+        agents = (root / "AGENTS.md").read_text(encoding="utf-8")
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        for text in (agents, readme):
+            self.assertIn(".context/log.md", text)
+            self.assertIn(".context/purpose.md", text)
+            self.assertNotIn("LOG.md", text)
+        self.assertIn("`ws context project:logged-project` for the full briefing", agents)
+
+    def test_purpose_has_one_home_in_context(self) -> None:
+        root = self.create_project("purposed", description="Find out whether the gate is fast enough.")
+
+        self.assertEqual(
+            (root / ".context" / "purpose.md").read_text(encoding="utf-8"),
+            "Find out whether the gate is fast enough.\n",
+        )
+        readme = (root / "README.md").read_text(encoding="utf-8")
+        self.assertIn(f"## Purpose\n\n{project.README_PURPOSE_POINTER}\n", readme)
+        self.assertNotIn("gate is fast enough", readme)
+        self.assertEqual(project.readme_purpose(root / "README.md"), "")  # a pointer is no purpose
+
+    def test_without_a_description_the_purpose_is_a_placeholder(self) -> None:
+        root = self.create_project("unpurposed", description=None)
+
+        purpose = root / ".context" / "purpose.md"
+        self.assertEqual(purpose.read_text(encoding="utf-8"), (project.TEMPLATES / "purpose.md").read_text(encoding="utf-8"))
+        self.assertTrue(purpose.read_text(encoding="utf-8").startswith("<!--"))
+        self.assertEqual(project.note_text(purpose), "")
+        self.assertIn("description: >\n  One paragraph.", (root / "project.yaml").read_text(encoding="utf-8"))
+
+    def guidance(self, **overrides) -> str:
+        values = {
+            "name": "guided", "title": None, "type": None, "status": "active", "description": None,
+            "field": None, "keyword": None, "host": None, "has_code": False, "has_paper": False,
+            "has_data": False, "server_compute": False, "python": False, "venv": False,
+            "use_project": None, "interactive": False, "non_interactive": True, "projects_dir": None,
+        }
+        values.update(overrides)
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            project.command_new_project(argparse.Namespace(**values))
+        output = stdout.getvalue()
+        return output[output.index("Every project keeps its context in .context/:"):]
+
+    def test_creation_tells_whoever_ran_it_what_to_fill_in(self) -> None:
+        block = self.guidance()
+
+        self.assertEqual(len(block.strip().splitlines()), 4)
+        self.assertIn("purpose.md  not set yet: fill it from what the person said, or ask them.", block)
+        self.assertIn("never invent it", block)
+        self.assertIn("log.md      add an entry at the top after each piece of work.", block)
+        self.assertIn("briefing    ws context project:guided", block)
+
+    def test_guidance_names_a_given_description(self) -> None:
+        block = self.guidance(name="described", description="Make the decoder fast.")
+
+        self.assertIn("purpose.md  holds the description given at creation", block)
+        self.assertIn("never invent it", block)
+
+    def test_agents_template_carries_every_line_migration_writes(self) -> None:
+        template = (project.TEMPLATES / "AGENTS.md").read_text(encoding="utf-8").splitlines()
+        for replacement in project.OLDER_LOG_AGENTS_LINES.values():
+            for line in replacement:
+                self.assertIn(line, template)
+        self.assertIn(project.AGENTS_CONTEXT_MEMORY_LINE, template)
 
     def test_project_records_broad_fields_and_compatible_subfields(self) -> None:
         root = self.create_project(
@@ -372,7 +453,9 @@ class ProjectCreationTests(unittest.TestCase):
         for name, flags, expected in cases:
             with self.subTest(name=name):
                 root = self.create_project(name, **flags)
-                optional_dirs = {path.name for path in root.iterdir() if path.is_dir() and path.name != ".git"}
+                optional_dirs = {
+                    path.name for path in root.iterdir() if path.is_dir() and path.name not in {".git", ".context"}
+                }
                 self.assertEqual(optional_dirs, expected)
 
     def test_spaced_name_is_slugified(self) -> None:

@@ -33,12 +33,20 @@ project.yaml    the record (fields below)
 README.md       the project, described for people
 AGENTS.md       the project's own rules for agents
 CLAUDE.md       a symlink to AGENTS.md
-LOG.md          the log, newest entry first
+.context/purpose.md   what the project is for, in your words
+.context/log.md       the log, newest entry first
 .gitignore      from the shipped template
 pyproject.toml  Python projects only
 ```
 
-Agents read `LOG.md` when they resume and add an entry when they finish.
+The purpose is yours. `.context/purpose.md` is its one home: the README
+only points there. An agent fills it from what you said, or asks you, and
+never makes it up. Agents read the log when they resume and add an entry
+after each piece of work. `ws context project:<key>` briefs a session on
+both (`ws help context`).
+
+Projects from before `.context/` keep a root `LOG.md` or a purpose in the
+README; `ws projects migrate` moves them (`ws help projects migrate`).
 
 ## Folders
 
@@ -65,7 +73,7 @@ tmp/     disposable scratch
 Every folder ws creates holds a `.gitkeep`, so the layout survives a clone.
 These folders are a floor, not a ceiling: any other top-level folder, such
 as `notes/`, is allowed. Agents add one only when no standard folder fits,
-and record it with the reason in `LOG.md`.
+and record it with the reason in `.context/log.md`.
 
 ## What git tracks
 
@@ -106,7 +114,8 @@ submodule only when the parent should pin an exact nested commit.
 : One of `idea`, `active`, `paused`, `complete`, `archived`.
 
 `created`, `description`
-: The creation date, and a one-paragraph purpose.
+: The creation date, and a one-paragraph description for the catalog. The
+  purpose itself lives in `.context/purpose.md`.
 
 `fields`, `subfields`, `keywords`
 : Broad disciplines and their specialisms from the taxonomy, shared with

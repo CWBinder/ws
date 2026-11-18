@@ -18,15 +18,25 @@ Three levels may hold a `.context/` folder:
 | object | the folder a folder-backed object owns: a project or subproject, a resource, a literature item | `whereami.md`, `instructions.md`, `purpose.md`, `log.md` |
 
 - Notes are plain Markdown owned by the workspace. People and agents edit them
-  directly; ws reads them and writes none of them. They are canonical, not
-  derived: deleting a note loses it.
-- Every note is optional, and an empty note counts as absent. Record-only
-  kinds (person, organisation, event, task, document, profile) own no folder,
-  so they have no purpose or log of their own.
+  directly. ws writes one only where a command says so: creating a project or
+  subproject writes its `purpose.md` and `log.md`, setup writes the notes its
+  answers give, and `ws projects migrate` moves a project's older notes in
+  ([Project](project.md#context-migration-root-logmd-and-readme-purposes)).
+  The commands of this layer only read. Notes are canonical, not derived:
+  deleting a note loses it.
+- Every note is optional. An empty note counts as absent, and so does one
+  that holds only HTML comments: that is how a placeholder is written, and
+  a briefing reports such a purpose as not set yet. Comments are left out
+  wherever a note is shown. Record-only kinds (person, organisation, event,
+  task, document, profile) own no folder, so they have no purpose or log of
+  their own.
 - `whereami.md` says what a place *is*; `instructions.md` how to work *there*;
   `purpose.md` what the object is *for*; `log.md` what has *happened*.
-- The purpose belongs to the person; agents propose changes to it. Which
+- The purpose belongs to the person; agents fill it from what the person
+  said or by asking, never by invention, and propose changes to it. Which
   purpose an object serves above it is a `contributes-to` edge, not text.
+- `purpose.md` is the one home of an object's purpose. Other files point at
+  it rather than copy it; a project's README says where it is.
 - A log lists entries newest first. Each entry starts with a `## ` heading,
   conventionally `YYYY-MM-DD · host`; text before the first heading is the
   log's preamble. An entry whose heading contains "summary" condenses older
@@ -86,10 +96,12 @@ not closed (done, dropped, cancelled, canceled, closed, complete, completed,
 archived; the dashboard's set). Relation words with a gloss show it; the
 others show without one.
 
-Older locations are read and marked as such: a project without
-`.context/purpose.md` shows its README's `## Purpose` section, and a project
-without `.context/log.md` shows its root `LOG.md`. Neither is moved or
-rewritten.
+Older locations are read and marked as such: a project without a purpose in
+`.context/purpose.md` shows its README's `## Purpose` section (unless that
+section only points at `.context/purpose.md`), and a project without
+`.context/log.md` shows its root `LOG.md`. The briefing names
+`ws projects migrate` as the command that moves them; it never moves or
+rewrites them itself.
 
 `--json` prints the same content as one object with `briefing`, `subject`,
 `ref`, `store`, `folder`, `whereami`, `owner`, `instructions`, `purpose` and
@@ -114,5 +126,6 @@ Older locations are not consulted there.
 ## Compatibility
 
 The layer is additive: no existing record, field or file changes meaning.
-Projects keep their root `LOG.md` readable until it is moved by hand into
-`.context/log.md`. Every command of the layer reads; none writes.
+Projects keep their root `LOG.md` and README purpose readable until
+`ws projects migrate` moves them into `.context/`. Every command of the layer
+reads; none writes.

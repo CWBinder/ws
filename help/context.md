@@ -91,9 +91,11 @@ resource or a literature item, may hold all four. Record-only kinds such as
 people, tasks and documents own no folder, so they have no purpose or log of
 their own.
 
-Every note is optional, and an empty note counts as absent. ws ships the
-generic whereami and house-rules text for the workspace and each store, so
-your notes add only what is specific to you.
+Every note is optional, and an empty note counts as absent, as does one
+holding only an HTML comment (`<!-- ... -->`). A new project starts with
+such a placeholder in `purpose.md`, and its briefing says the purpose is not
+set yet. ws ships the generic whereami and house-rules text for the
+workspace and each store, so your notes add only what is specific to you.
 
 `whereami.md`
 : What a place is.
@@ -105,7 +107,8 @@ your notes add only what is specific to you.
 : What the object is for, as an outcome: "find out whether ...", "make this
   package easy to use for ...". Phrase a research question as a question,
   so that a clear "no" also counts as an answer. The purpose belongs to the
-  person; agents propose changes to it.
+  person: agents fill it from what the person said, or ask, and never make
+  it up. It lives here only; a project's README points to it.
 
 `log.md`
 : What has happened, one entry per finished piece of work or decision,
@@ -133,12 +136,15 @@ When the log grows long, fold the oldest entries into one entry headed
 
 A project without `.context/log.md` is briefed from its root `LOG.md`, and
 one without `.context/purpose.md` from its README's `## Purpose` section;
-both are marked as the older location and never moved or rewritten. To
-move a log, run this inside the project:
+both are marked as the older location. The briefing never moves them; to
+see what moving them would change, and then do it:
 
 ```bash
-mkdir -p .context && git mv LOG.md .context/log.md
+ws projects migrate
+ws projects migrate --apply
 ```
+
+`ws help projects migrate` says what it changes.
 
 ## Briefing every session automatically
 

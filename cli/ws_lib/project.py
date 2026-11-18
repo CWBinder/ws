@@ -83,7 +83,23 @@ def make_project_dirs(root: Path, folders: list[str]) -> None:
         print(f"created: {rel_home(path)}/")
 
 
+# A project keeps its context in .context/ (contracts/context.md):
+# purpose.md, the one home of what it is for, and log.md, what happened.
+CONTEXT_DIR = ".context"
+OLDER_LOG = "LOG.md"
+HTML_COMMENT = re.compile(r"<!--.*?-->", re.DOTALL)
+README_PURPOSE = re.compile(r"^##\s+Purpose\s*$(.*?)(?=^##\s|\Z)", re.MULTILINE | re.DOTALL)
+# What a README's Purpose section says once the purpose lives in .context/.
+DESCRIPTION_PLACEHOLDER = "One paragraph."
+README_PURPOSE_POINTER = "See `.context/purpose.md`, the one place the purpose is kept."
+README_CONTEXT_FILES = [
+    "- `.context/purpose.md` - what the project is for, in the person's words",
+    "- `.context/log.md` - what happened, newest first; read it when resuming",
+]
+
+
 def write_project_log(root: Path, title: str, entry: str) -> None:
+    """Start the project's log, `.context/log.md`, with one entry."""
     content = read(TEMPLATES / "LOG.md")
     for key, value in {
         "<Project Title>": title,
@@ -92,7 +108,53 @@ def write_project_log(root: Path, title: str, entry: str) -> None:
         "<log-entry>": entry,
     }.items():
         content = content.replace(key, value)
-    write_new(root / "LOG.md", content)
+    write_new(root / CONTEXT_DIR / "log.md", content)
+
+
+def write_project_purpose(root: Path, text: str = "", replace: bool = False) -> None:
+    """`.context/purpose.md`, the one home of a project's purpose: the given
+    text, or the template's placeholder, which ws reads as not set yet.
+    `replace` overwrites a file that holds no purpose yet."""
+    content = text.strip() + "\n" if text.strip() else read(TEMPLATES / "purpose.md")
+    path = root / CONTEXT_DIR / "purpose.md"
+    if replace and path.exists() and not note_text(path):
+        path.write_text(content, encoding="utf-8")
+        print(f"updated: {rel_home(path)}")
+        return
+    write_new(path, content)
+
+
+def print_context_guidance(ref: str, purpose_given: bool) -> None:
+    """The few lines creation ends with, for whoever ran it (usually an
+    agent): what it must fill in, and where the full briefing is."""
+    purpose = (
+        "holds the description given at creation; keep it to what the person said"
+        if purpose_given
+        else "not set yet: fill it from what the person said, or ask them"
+    )
+    print()
+    print("Every project keeps its context in .context/:")
+    print(f"  purpose.md  {purpose}. The purpose is the person's; never invent it.")
+    print("  log.md      add an entry at the top after each piece of work.")
+    print(f"  briefing    ws context {ref}")
+
+
+def note_text(path: Path) -> str:
+    """A note's text without HTML comments, so a placeholder reads as ''."""
+    if not path.is_file():
+        return ""
+    return HTML_COMMENT.sub("", path.read_text(encoding="utf-8")).strip()
+
+
+def readme_purpose(readme: Path) -> str:
+    """The README's `## Purpose` section, the older home of a project's
+    purpose: '' when there is none or when it only points at
+    `.context/purpose.md`."""
+    if not readme.is_file():
+        return ""
+    match = README_PURPOSE.search(read(readme))
+    body = match.group(1).strip() if match else ""
+    return "" if f"{CONTEXT_DIR}/purpose.md" in body else body
 
 
 # Ignore rules every project carries for its standard folders; layout
@@ -120,10 +182,50 @@ RETIRED_AGENTS_RULES = {
 }
 RETIRED_AGENTS_MEMORY_LINE = "- do not store agent memory in this file"
 
+# Lines of the AGENTS.md template from when the log was a root LOG.md, and
+# the template lines that replace them. `ws projects migrate` swaps them
+# where they appear verbatim; <project-name> is filled in as on creation.
+AGENTS_CONTEXT_READ_FIRST = [
+    "- .context/purpose.md (what this project is for; it belongs to the person)",
+    "- .context/log.md (newest entries first; read until you know the current state)",
+    "- `ws context project:<project-name>` for the full briefing",
+]
+AGENTS_CONTEXT_MEMORY_LINE = "- do not store agent memory or session state in this file; that goes in .context/log.md"
+OLDER_LOG_AGENTS_LINES = {
+    "- LOG.md (newest entries first; read until you know the current state)": AGENTS_CONTEXT_READ_FIRST,
+    (
+        "- put material in the folder that fits; add a new top-level folder only when none does, "
+        "and record it with the reason in LOG.md"
+    ): [
+        (
+            "- put material in the folder that fits; add a new top-level folder only when none does, "
+            "and record it with the reason in .context/log.md"
+        ),
+    ],
+    "Log:": ["Context:"],
+    (
+        "- before ending a working session, add an entry at the top of LOG.md: date, host, what you did, "
+        "what was decided and why, what comes next"
+    ): [
+        (
+            "- .context/purpose.md says what the project is for, in the person's words: "
+            "fill or change it only from what they said, or ask them; never invent it"
+        ),
+        (
+            "- after each piece of work, add an entry at the top of .context/log.md: date, host, "
+            "what you did, what was decided and why, what comes next"
+        ),
+    ],
+    "- do not store agent memory or session state in this file; that goes in LOG.md": [AGENTS_CONTEXT_MEMORY_LINE],
+}
+OLDER_LOG_README_LINES = {
+    "- `LOG.md` - what happened, newest first; read it when resuming": README_CONTEXT_FILES,
+}
+
 
 def agents_template_blocks(*headings: str) -> list[str]:
-    """The named blocks ("Folders:", "Log:") of the AGENTS.md template, so
-    migration writes exactly what creation writes."""
+    """The named blocks ("Folders:", "Context:") of the AGENTS.md template,
+    so migration writes exactly what creation writes."""
     blocks = read(TEMPLATES / "AGENTS.md").split("\n\n")
     return [block.strip("\n") for block in blocks if block.lstrip().split("\n", 1)[0] in headings]
 
@@ -150,25 +252,28 @@ def migrate_gitignore(root: Path) -> bool:
     return changed
 
 
-def migrate_agents_md(root: Path) -> bool:
+def migrate_agents_md(root: Path, key: str) -> bool:
+    """Add the folder and context rules to an AGENTS.md from before the
+    project log existed. One that names a log already is left to
+    `ws projects migrate`."""
     path = root / "AGENTS.md"
     if not path.exists() or path.is_symlink():
         return False
     text = read(path)
-    if "LOG.md" in text:
+    if OLDER_LOG in text or f"{CONTEXT_DIR}/log.md" in text:
         return False
     lines = [line for line in text.splitlines() if line.strip() not in RETIRED_AGENTS_RULES]
     lines = [
-        "- do not store agent memory or session state in this file; that goes in LOG.md"
-        if line.strip() == RETIRED_AGENTS_MEMORY_LINE else line
+        AGENTS_CONTEXT_MEMORY_LINE if line.strip() == RETIRED_AGENTS_MEMORY_LINE else line
         for line in lines
     ]
     stripped = [line.strip() for line in lines]
     if "- README.md" in stripped:
         at = stripped.index("- README.md") + 1
-        lines.insert(at, "- LOG.md (newest entries first; read until you know the current state)")
-        stripped.insert(at, lines[at])
-    new_blocks = "\n\n".join(agents_template_blocks("Folders:", "Log:")).splitlines()
+        read_first = [line.replace("<project-name>", key) for line in AGENTS_CONTEXT_READ_FIRST]
+        lines[at:at] = read_first
+        stripped[at:at] = read_first
+    new_blocks = "\n\n".join(agents_template_blocks("Folders:", "Context:")).splitlines()
     if "Rules:" in stripped:
         at = stripped.index("Rules:")
         lines[at:at] = new_blocks + [""]
@@ -178,15 +283,151 @@ def migrate_agents_md(root: Path) -> bool:
     return True
 
 
-def migrate_project_layout(root: Path, title: str) -> None:
-    """Bring a project created before LOG.md, in/ and out/ were standard up
-    to the current layout. Additive only: nothing is moved or deleted."""
-    if not (root / "LOG.md").exists():
+def _replace_lines(path: Path, mapping: dict[str, list[str]], key: str) -> int:
+    """Swap each line found verbatim in `mapping` for its replacement lines,
+    skipping replacement lines the file holds already. Returns the count of
+    lines swapped; writes only when there is one."""
+    if not path.is_file() or path.is_symlink():
+        return 0
+    lines = read(path).splitlines()
+    present = {line.strip() for line in lines}
+    out: list[str] = []
+    swapped = 0
+    for line in lines:
+        replacement = mapping.get(line.strip())
+        if replacement is None:
+            out.append(line)
+            continue
+        swapped += 1
+        indent = line[: len(line) - len(line.lstrip())]
+        for new in replacement:
+            new = new.replace("<project-name>", key)
+            if new not in present:
+                out.append(indent + new)
+                present.add(new)
+    if swapped:
+        path.write_text("\n".join(out).rstrip("\n") + "\n", encoding="utf-8")
+    return swapped
+
+
+def _count_lines(path: Path, mapping: dict[str, list[str]]) -> int:
+    """How many lines migration would swap; none in a file that does not
+    name the root LOG.md at all, so a hand-written `Log:` heading stays."""
+    if not path.is_file() or path.is_symlink():
+        return 0
+    text = read(path)
+    if OLDER_LOG not in text:
+        return 0
+    return sum(1 for line in text.splitlines() if line.strip() in mapping)
+
+
+def _older_log_mentions(path: Path, mapping: dict[str, list[str]]) -> list[int]:
+    """Line numbers that still name the root LOG.md and are not template
+    lines migration swaps, so a person can fix them by hand."""
+    if not path.is_file() or path.is_symlink():
+        return []
+    return [
+        number
+        for number, line in enumerate(read(path).splitlines(), 1)
+        if OLDER_LOG in line and line.strip() not in mapping
+    ]
+
+
+def _point_readme_purpose(readme: Path) -> None:
+    """Replace the body of README.md's Purpose section with the pointer."""
+    text = read(readme)
+    match = README_PURPOSE.search(text)
+    if match:
+        rest = text[match.end(1):]
+        body = f"\n\n{README_PURPOSE_POINTER}\n" + ("\n" if rest else "")
+        readme.write_text(text[: match.start(1)].rstrip() + body + rest, encoding="utf-8")
+
+
+def _move_older_log(root: Path) -> None:
+    (root / CONTEXT_DIR).mkdir(exist_ok=True)
+    (root / OLDER_LOG).rename(root / CONTEXT_DIR / "log.md")
+
+
+def context_layout_plan(root: Path, key: str, title: str) -> tuple[list[tuple[str, object]], list[str]]:
+    """What it takes to bring one project's context into `.context/`.
+
+    Returns (steps, left): each step is a (description, action) pair, run in
+    order; `left` names what migration will not decide, for a person to do
+    by hand. Steps move or copy content and fix pointers; none deletes it."""
+    steps: list[tuple[str, object]] = []
+    left: list[str] = []
+    context = root / CONTEXT_DIR
+    readme = root / "README.md"
+    agents = root / "AGENTS.md"
+
+    older_log, log = root / OLDER_LOG, context / "log.md"
+    if older_log.is_file() and log.exists():
+        left.append(f"both {OLDER_LOG} and {CONTEXT_DIR}/log.md exist: merge {OLDER_LOG} into {CONTEXT_DIR}/log.md by hand, then delete it")
+    elif older_log.is_file():
+        steps.append((f"move {OLDER_LOG} to {CONTEXT_DIR}/log.md", lambda: _move_older_log(root)))
+    elif not log.exists():
+        steps.append((
+            f"create {CONTEXT_DIR}/log.md with a first entry",
+            lambda: write_project_log(root, title, "- Did: started this log. Earlier history is in the git log and README.md."),
+        ))
+
+    purpose_path = context / "purpose.md"
+    in_readme = readme_purpose(readme)
+    purpose_text = note_text(purpose_path)
+    if not purpose_text and in_readme:
+        # Absent, empty or still the placeholder: the README holds the purpose.
+        steps.append((
+            f"write {CONTEXT_DIR}/purpose.md from README.md's Purpose section, verbatim",
+            lambda: write_project_purpose(root, in_readme, replace=True),
+        ))
+        purpose_text = in_readme
+    elif not purpose_path.exists():
+        steps.append((
+            f"create {CONTEXT_DIR}/purpose.md as a placeholder: not set yet",
+            lambda: write_project_purpose(root),
+        ))
+    if in_readme and _same_text(in_readme, purpose_text):
+        steps.append((
+            f"README.md: replace the Purpose section, a copy of {CONTEXT_DIR}/purpose.md, with a pointer to it",
+            lambda: _point_readme_purpose(readme),
+        ))
+    elif in_readme:
+        left.append(
+            f"README.md's Purpose section differs from {CONTEXT_DIR}/purpose.md: "
+            "settle the purpose there with the person, then point README.md at it"
+        )
+
+    for path, mapping in ((agents, OLDER_LOG_AGENTS_LINES), (readme, OLDER_LOG_README_LINES)):
+        count = _count_lines(path, mapping)
+        if count:
+            noun = "line" if count == 1 else "lines"
+            steps.append((
+                f"{path.name}: rewrite {count} template {noun} to name {CONTEXT_DIR}/ instead of {OLDER_LOG}",
+                lambda path=path, mapping=mapping: _replace_lines(path, mapping, key),
+            ))
+        for number in _older_log_mentions(path, mapping):
+            left.append(f"{path.name} line {number} still names {OLDER_LOG}: edit it by hand")
+    return steps, left
+
+
+def _same_text(left: str, right: str) -> bool:
+    return " ".join(left.split()) == " ".join(right.split())
+
+
+def migrate_project_layout(root: Path, title: str, key: str) -> None:
+    """Bring a project created before the current layout up to it. Additive
+    only: a missing log or purpose is started, nothing is moved or deleted;
+    moving older content is `ws projects migrate`'s job."""
+    if not (root / CONTEXT_DIR / "log.md").exists() and not (root / OLDER_LOG).exists():
         write_project_log(root, title, "- Did: started this log. Earlier history is in the git log and README.md.")
+    if not (root / CONTEXT_DIR / "purpose.md").exists() and not readme_purpose(root / "README.md"):
+        write_project_purpose(root)
     if migrate_gitignore(root):
         print(f"updated: {rel_home(root / '.gitignore')}")
-    if migrate_agents_md(root):
+    if migrate_agents_md(root, key):
         print(f"updated: {rel_home(root / 'AGENTS.md')}")
+    if context_layout_plan(root, key, title)[0]:
+        print(f"note: part of this project's context is in an older place; preview the move with `ws projects migrate project:{key}`")
 
 
 def fail(message: str, code: int = 1) -> None:
@@ -864,14 +1105,15 @@ def record_project_dependencies(root: Path, dependencies: list[dict[str, str]]) 
 
 
 def converge_project_installs(root: Path) -> bool:
-    """(Re)materialize what project.yaml records: the standard layout (LOG.md,
-    in/, out/, ignore rules), capability folders, Python scaffolding, the
-    venv, package dependencies, and the slide generator. Returns False when
-    the file records no capability beyond the standard layout."""
+    """(Re)materialize what project.yaml records: the standard layout
+    (.context/log.md and purpose.md, in/, out/, ignore rules), capability
+    folders, Python scaffolding, the venv, package dependencies, and the
+    slide generator. Returns False when the file records no capability
+    beyond the standard layout."""
     meta = parse_project_yaml(root / "project.yaml")
     runtime = meta.get("runtime", {})
     capabilities = [meta[key] == "true" for key in ("has_code", "has_paper", "has_data", "has_slides")]
-    migrate_project_layout(root, meta.get("title") or project_title(root.name, None))
+    migrate_project_layout(root, meta.get("title") or project_title(root.name, None), project_key(root))
     make_project_dirs(root, requested_project_dirs(*capabilities))
     python_wanted = runtime.get("python") == "true"
     venv_wanted = bool(runtime.get("venv"))
@@ -958,6 +1200,15 @@ def normalize_ref(ref: str, known) -> Optional[str]:
         return ref
     leaves = [name for name in known if name.rsplit("/", 1)[-1] == ref]
     return leaves[0] if len(leaves) == 1 else None
+
+
+def project_key(root: Path) -> str:
+    """A project folder's key, its path in the store; the folder name for a
+    project outside it."""
+    try:
+        return root.resolve().relative_to(PROJECTS.resolve()).as_posix()
+    except ValueError:
+        return root.name
 
 
 def find_enclosing_project(start: Optional[Path] = None) -> Optional[Path]:
@@ -1473,7 +1724,7 @@ def command_project_sub(args: argparse.Namespace) -> None:
     if root.exists():
         fail(f"already exists: {rel_home(root)}")
     venv_rel = "/".join([".."] * len(rel_parts)) + "/.venv"
-    description = args.description or "One paragraph."
+    description = args.description or DESCRIPTION_PLACEHOLDER
     root.mkdir(parents=True)
     make_project_dirs(root, SUBPROJECT_DIRS)
     write_new(
@@ -1487,9 +1738,12 @@ def command_project_sub(args: argparse.Namespace) -> None:
         f"# {project_title(name, None)}\n\n"
         f"Subproject of `{parent_name}`. Shares the parent's environment "
         f"(`{venv_rel}`); it has no `.venv` of its own. Versioned by its own "
-        f"git repository, ignored by the parent's.\n",
+        f"git repository, ignored by the parent's.\n\n"
+        f"Its purpose is kept in `.context/purpose.md`, and what happened in "
+        f"`.context/log.md`, newest first.\n",
     )
     write_project_log(root, project_title(name, None), f"- Did: created the subproject inside `{parent_name}`.")
+    write_project_purpose(root, args.description or "")
     # The subproject versions itself: its own repository, ignored by the
     # parent's so the parent's history stays free of it.
     if not (root / ".git").exists():
@@ -1506,6 +1760,7 @@ def command_project_sub(args: argparse.Namespace) -> None:
         print(f"ignored by parent: {ignore_line}")
     print(f"subproject ready: {rel_home(root)}")
     print(f"uses the parent env — run `{venv_rel}/bin/python ...` (or `source {venv_rel}/bin/activate`) from {rel_home(root)}")
+    print_context_guidance(f"project:{parent_name}/{'/'.join(rel_parts)}", bool(args.description))
 
 
 def command_new_project(args: argparse.Namespace) -> None:
@@ -1553,7 +1808,7 @@ def command_new_project(args: argparse.Namespace) -> None:
     title = project_title(name, args.title)
     project_type = args.type or project_types[0]
     status = args.status or "active"
-    description = args.description or "One paragraph."
+    description = args.description or DESCRIPTION_PLACEHOLDER
     fields = args.field or []
     subfields = getattr(args, "subfield", None) or []
     keywords = args.keyword or []
@@ -1609,6 +1864,9 @@ def command_new_project(args: argparse.Namespace) -> None:
         python_enabled = True
     if python_enabled:
         has_code = True
+    # Only a description someone gave becomes the purpose; the default
+    # stays in project.yaml and .context/purpose.md starts as not set yet.
+    purpose_given = description.strip() not in {"", DESCRIPTION_PLACEHOLDER}
 
     if project_type not in project_types:
         fail(f"type must be one of: {', '.join(project_types)}")
@@ -1672,7 +1930,7 @@ sync:
 
 ## Purpose
 
-{description}
+{README_PURPOSE_POINTER}
 
 ## Current State
 
@@ -1683,7 +1941,7 @@ sync:
 
 - `project.yaml` - machine-readable project metadata and routing hints
 - `AGENTS.md` - project-wide instructions for agents and humans
-- `LOG.md` - what happened, newest first; read it when resuming
+{chr(10).join(README_CONTEXT_FILES)}
 - `README.md` - human-readable overview
 
 ## Next Steps
@@ -1694,6 +1952,7 @@ sync:
     copy_template("AGENTS.md", root / "AGENTS.md", replacements)
     write_claude_md(root)
     write_project_log(root, title, "- Did: created the project.")
+    write_project_purpose(root, description if purpose_given else "")
     copy_template("gitignore", root / ".gitignore", replacements)
     if python_enabled:
         create_python_project_files(root, name)
@@ -1711,6 +1970,7 @@ sync:
         _relate_project_links(relpath, dependency_projects, [])
     print(f"created: project:{name}")
     print(f"project ready: {rel_home(root)}")
+    print_context_guidance(f"project:{relpath}", purpose_given)
 
 
 def command_project_install(args: argparse.Namespace) -> None:
@@ -1790,10 +2050,20 @@ def command_project_check(_args: argparse.Namespace) -> None:
     for name in projects:
         root = PROJECTS / name
         findings: list[tuple[str, str]] = []
-        for required in ["project.yaml", "README.md", "AGENTS.md", "LOG.md", ".gitignore"]:
+        for required in ["project.yaml", "README.md", "AGENTS.md", ".gitignore"]:
             if not (root / required).exists():
-                hint = f" (run `ws projects install project:{name}`)" if required == "LOG.md" else ""
-                findings.append(("problem", f"missing {required}{hint}"))
+                findings.append(("problem", f"missing {required}"))
+        steps, left = context_layout_plan(root, name, project_title(root.name, None))
+        if steps:
+            findings.append((
+                "problem",
+                f"context not in .context/ yet (preview with `ws projects migrate project:{name}`): "
+                + "; ".join(description for description, _ in steps),
+            ))
+        findings.extend(("note", message) for message in left)
+        purpose_path = root / CONTEXT_DIR / "purpose.md"
+        if purpose_path.exists() and not note_text(purpose_path) and not readme_purpose(root / "README.md"):
+            findings.append(("note", f"purpose not set yet: fill {CONTEXT_DIR}/purpose.md from what the person said, or ask them"))
         claude_problem = validate_claude_md(root)
         if claude_problem:
             findings.append(("problem", claude_problem))
@@ -1864,6 +2134,69 @@ def command_project_check(_args: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def _migration_targets(refs: list[str]) -> list[tuple[str, Path, str]]:
+    """(key, folder, title) of each project to migrate: the named ones, or
+    every project in the store with its subprojects."""
+    def title_of(root: Path) -> str:
+        if (root / "project.yaml").exists():
+            title = parse_project_yaml(root / "project.yaml").get("title")
+            if title:
+                return title
+        return project_title(root.name, None)
+
+    targets = []
+    if refs:
+        for ref in refs:
+            key = project_key_from_ref(ref)
+            root = PROJECTS / key
+            if not ((root / "project.yaml").exists() or (root / "subproject.yaml").exists()):
+                fail(f"no project.yaml or subproject.yaml at {rel_home(root)}")
+            targets.append((key, root, title_of(root)))
+        return targets
+    for name in existing_project_names():
+        root = PROJECTS / name
+        targets.append((name, root, title_of(root)))
+        targets += [(f"{name}/{sub}", root / sub, title_of(root / sub)) for sub in subproject_names(root)]
+    return targets
+
+
+def command_project_migrate(args: argparse.Namespace) -> None:
+    """Bring projects' context into .context/: move a root LOG.md to
+    .context/log.md, write .context/purpose.md from the README's Purpose
+    section where it is missing, and point AGENTS.md and README.md there.
+    Prints the plan unless --apply; content is moved or copied, never
+    deleted."""
+    use_projects_dir(args)
+    apply = bool(getattr(args, "apply", False))
+    changed = projects = 0
+    unsettled = False
+    for key, root, title in _migration_targets(list(getattr(args, "refs", None) or [])):
+        steps, left = context_layout_plan(root, key, title)
+        if not steps and not left:
+            continue
+        print(f"project:{key}")
+        for description, action in steps:
+            if apply:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    action()
+            print(f"  {'done' if apply else 'will'}: {description}")
+        if apply and steps:
+            left = context_layout_plan(root, key, title)[1]
+        for message in left:
+            print(f"  left for you: {message}")
+        changed += len(steps)
+        projects += 1 if steps else 0
+        unsettled = unsettled or bool(left)
+    if not changed:
+        print("nothing to move" + ("; what is listed is left for you" if unsettled else ": every project keeps its context in .context/"))
+        return
+    noun = "project" if projects == 1 else "projects"
+    if apply:
+        print(f"\nmigrated {projects} {noun}; each change shows in that project's git status")
+    else:
+        print(f"\ndry run: {changed} changes in {projects} {noun}, nothing written; rerun with --apply to make them")
+
+
 def command_project_help(args: argparse.Namespace) -> None:
     args.parser.print_help()
 
@@ -1905,7 +2238,9 @@ Generated files:
   README.md     human-readable overview
   AGENTS.md     project-wide agent instructions
   CLAUDE.md     symlink to AGENTS.md for Claude Code
-  LOG.md        project log, newest entry first
+  .context/purpose.md  what the project is for: the --description text,
+                       or not set yet until filled from the person's words
+  .context/log.md      project log, newest entry first
   .gitignore    local ignore rules
 
 Generated folders (each with a .gitkeep):
@@ -2001,6 +2336,7 @@ def add_parser(sub: argparse._SubParsersAction, command_name: str = "projects") 
         description="Project specialists: installs, checks, taxonomy, views.",
         epilog="""Primary project commands:
   ws projects install [<name>]
+  ws projects migrate [--apply]
   ws projects taxonomy
   ws projects add-type <type>
   ws projects add-field <field>
@@ -2030,9 +2366,10 @@ Projects are minted with `ws create project` and read with
                      theme packages from `slides.themes` in the ws
                      configuration, editable-installed into .venv (implies venv)
 
-Every run also brings the standard layout up to date: LOG.md, in/, out/,
-slides/ when has_slides, the ignore rules for out/ and built decks, and the
-LOG.md rules in AGENTS.md. It adds, never moves or deletes.
+Every run also brings the standard layout up to date: .context/log.md and
+.context/purpose.md when missing, in/, out/, slides/ when has_slides, the
+ignore rules for out/ and built decks, and the context rules in AGENTS.md.
+It adds, never moves or deletes; `ws projects migrate` moves older content.
 
 Examples:
   ws projects install                (re)run everything recorded: folders,
@@ -2063,6 +2400,40 @@ Capabilities extend the record and never unset it; removal is a hand edit.""",
     )
     add_projects_dir_arg(project_install)
     project_install.set_defaults(func=command_project_install)
+    project_migrate = project_sub.add_parser(
+        "migrate",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        help="move older projects' log and purpose into .context/; prints the plan unless --apply",
+        description="Bring projects' context into .context/, where every project keeps it. "
+        "Without --apply it only prints what it would change.",
+        epilog="""What it changes, per project and subproject:
+  a root LOG.md                moves to .context/log.md
+  no .context/purpose.md       written from README.md's Purpose section,
+                               verbatim; a placeholder when there is none
+  README.md's Purpose section  replaced by a pointer when it copies
+                               .context/purpose.md word for word
+  AGENTS.md and README.md      template lines naming LOG.md now name
+                               .context/
+  no log at all                .context/log.md with a first entry
+
+It moves and copies, never deletes. What it cannot decide (a log in both
+places, a README purpose that differs, hand-written LOG.md mentions) is
+listed for you to settle.
+
+Examples:
+  ws projects migrate                         the plan for every project
+  ws projects migrate --apply                 make the changes
+  ws projects migrate project:<key> --apply   one project""",
+    )
+    project_migrate.add_argument(
+        "refs",
+        nargs="*",
+        metavar="REF",
+        help="projects to migrate, as project:<key>; default: every project and subproject",
+    )
+    project_migrate.add_argument("--apply", action="store_true", help="make the changes; without it, only print them")
+    add_projects_dir_arg(project_migrate)
+    project_migrate.set_defaults(func=command_project_migrate)
     project_sub.add_parser("taxonomy", help="show allowed project types, fields, and subfields").set_defaults(func=command_project_taxonomy)
     add_taxonomy_value_parser(project_sub, "add-type", command_add_project_type, "add an allowed project type")
     add_taxonomy_value_parser(project_sub, "add-field", command_add_project_field, "add an allowed project field")

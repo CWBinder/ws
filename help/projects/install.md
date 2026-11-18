@@ -28,9 +28,11 @@ ws projects install project:<key>
 With no capability words, install reruns everything the record holds:
 useful after a clone, after recreating `.venv`, or after editing
 `project.yaml`. Every run also brings the standard layout up to date: it
-adds `LOG.md`, missing standard folders, the ignore rules for `out/` and
-built decks, and the `LOG.md` rules in `AGENTS.md`. It never moves or
-deletes anything.
+adds `.context/log.md` and `.context/purpose.md` where a project has none,
+missing standard folders, the ignore rules for `out/` and built decks, and
+the context rules in `AGENTS.md`. It never moves or deletes anything; a log
+or purpose in an older place is moved by `ws projects migrate`
+(`ws help projects migrate`).
 
 ## Install another workspace project as a package
 

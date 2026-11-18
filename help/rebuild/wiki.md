@@ -53,8 +53,10 @@ wiki/generated/
 ```
 
 A project note shows its title, type, status, fields, subfields and
-keywords, its relations, and the `Purpose`, `Current State` and `Next
-Steps` sections of the project's README, copied in at build time. It links
+keywords, its relations, its purpose from `.context/purpose.md` (or the
+README's `Purpose` section in a project not yet migrated), and the
+`Current State` and `Next Steps` sections of its README, copied in at build
+time. It links
 to the README, `AGENTS.md` and `project.yaml` rather than copying the
 instructions. A literature note shows title, authors, year and DOI, its
 keywords, fields and summary, the projects that list it, its relations,

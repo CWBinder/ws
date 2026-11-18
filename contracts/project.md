@@ -49,7 +49,8 @@ it carries a `subproject.yaml`, **not** a `project.yaml`, which keeps the
 structural relationship: discovery keeps the enclosing project as the parent
 (so the subproject never appears in `ws list projects`, and `ws projects
 install` run from inside it sets up the *parent's* environment). It has its
-own `LOG.md`, `in/`, `code/`, `data/` and `out/`, with the meanings in
+own `.context/` (log and purpose, as in [Context](#context)), `in/`, `code/`,
+`data/` and `out/`, with the meanings in
 [Folders](#folders), and **its own git repository, ignored by
 the parent's** (`create-subproject` runs `git init` and appends the
 subproject's path to the parent's `.gitignore`), but no `.venv` of its own
@@ -77,7 +78,8 @@ project.yaml
 README.md
 AGENTS.md
 CLAUDE.md
-LOG.md
+.context/log.md
+.context/purpose.md
 .gitignore
 ```
 
@@ -125,10 +127,10 @@ material goes in the standard folder that fits it.
 Other top-level folders are allowed (for example `notes/`, or `src/` and
 `tests/` in a software project). A person may add any folder. An agent adds
 one only when no standard folder fits, and records the folder and the reason
-in `LOG.md`. ws neither creates nor flags them.
+in `.context/log.md`. ws neither creates nor flags them.
 
 `notes/` is no longer a conventional folder: kept working notes belong in
-`LOG.md`. Existing `notes/` folders stay valid.
+`.context/log.md`. Existing `notes/` folders stay valid.
 
 ## `project.yaml`
 
@@ -304,9 +306,11 @@ Human-readable project overview.
 
 Should contain:
 
-- purpose
+- a `## Purpose` section that points at `.context/purpose.md` and does not
+  copy it, so the purpose has one home and cannot drift
 - current state
-- important files or folders
+- important files or folders, including `.context/purpose.md` and
+  `.context/log.md`
 - how to run/build/read the project, if applicable
 
 ## `AGENTS.md`
@@ -315,24 +319,42 @@ Project-wide instructions.
 
 Should contain:
 
-- read-first list, with `LOG.md` right after `README.md`
+- read-first list, with `.context/purpose.md` and `.context/log.md` right
+  after `README.md`, then `ws context project:<key>` for the full briefing
 - the standard folders and their meanings
-- the logging rule: add a `LOG.md` entry before ending a working session
+- the context rules: the purpose is filled or changed only from the person's
+  words, and a `.context/log.md` entry follows each piece of work
 - project-specific safety rules
 - testing/build/review expectations
 
 Project `AGENTS.md` should not accumulate session-specific state or durable
-agent memory; that belongs in `LOG.md`.
+agent memory; that belongs in `.context/log.md`.
 
-## `LOG.md`
+## Context
+
+A project keeps its context in `.context/`, as every folder-backed object may
+([Context contract](context.md)). Creation writes both notes; they are
+plain Markdown that people and agents edit directly.
+
+### `.context/purpose.md`
+
+What the project is for: the one canonical home of its purpose. The purpose
+belongs to the person; an agent fills it from what they said or by asking
+them, and never invents it. `ws create project` writes the `--description`
+text there; without one it writes the placeholder from
+`templates/purpose.md`, an HTML comment that the context layer reads as not
+set yet. `project.yaml`'s `description` is catalog metadata and is not kept
+in step. `README.md` points at the file instead of repeating it.
+
+### `.context/log.md`
 
 The project's running record, so that a person or agent resuming the project
 can understand its scope and state without replaying its history. `README.md`
-keeps the stable overview and `AGENTS.md` the standing instructions; `LOG.md`
+keeps the stable overview and `AGENTS.md` the standing instructions; the log
 keeps what happened.
 
-Newest entry first. Each working session that changes the project, or decides
-something about it, adds one dated entry before it ends:
+Newest entry first. After each piece of work that changes the project, or
+decides something about it, one dated entry is added at the top:
 
 ```markdown
 ## YYYY-MM-DD · <host>
@@ -345,7 +367,16 @@ something about it, adds one dated entry before it ends:
 An entry also names any new top-level folder and why it was needed. Entries
 are added, not rewritten; when the log grows long, older entries may be
 condensed into one summary entry. `ws create project` writes the first entry.
-`LOG.md` is tracked in git.
+`.context/` is tracked in git.
+
+### What creation reports
+
+After creating, `ws create project` (and `ws create subproject`) prints a
+short block for whoever ran it, usually an agent: the purpose is in
+`.context/purpose.md` and must come from the person's words or a question to
+them, never invention (or, with `--description`, that it holds that text);
+the log is `.context/log.md`, with an entry after each piece of work; and
+`ws context project:<key>` gives the full briefing.
 
 ## Git Boundary and Sync
 
@@ -360,7 +391,7 @@ project.yaml
 README.md
 AGENTS.md
 CLAUDE.md        (symlink to AGENTS.md)
-LOG.md           (project log)
+.context/        (purpose and log)
 in/              (inputs; heavy files excepted, see below)
 code/  paper/    (unless nested repositories, see below)
 slides/          (build scripts and assets; built decks excepted)
@@ -429,32 +460,71 @@ Use:
 ```text
 ~/Projects/ws/templates/project.yaml
 ~/Projects/ws/templates/AGENTS.md
-~/Projects/ws/templates/LOG.md
+~/Projects/ws/templates/LOG.md        (written to .context/log.md)
+~/Projects/ws/templates/purpose.md    (the not-set-yet placeholder)
 ~/Projects/ws/templates/gitignore
 ```
 
-## Layout migration: `LOG.md`, `in/`, `out/`, `slides/`
+## Layout migration: `in/`, `out/`, `slides/`
 
-Projects created before `LOG.md`, `in/` and `out/` became standard stay
-readable. `project.yaml` gains no keys, so `schema_version` stays `1`.
+Projects created before `in/` and `out/` became standard stay readable.
+`project.yaml` gains no keys, so `schema_version` stays `1`.
 
-- `ws projects check` reports a missing `LOG.md` as a problem, like any other
-  required file, and names the command that adds it. A missing `in/`, `out/`,
-  or `slides/` (when `has_slides`) is a note.
+- `ws projects check` reports a missing `in/`, `out/`, or `slides/` (when
+  `has_slides`) as a note.
 - `ws projects install project:<key>`, with no capability words, adds what is
-  missing: `LOG.md` with a first entry pointing at the git history and
-  `README.md`; `in/` and `out/` (and `slides/` when `has_slides`) with
-  `.gitkeep`; the missing ignore lines in `.gitignore` (the `out/**` manifest
-  pattern replaces a bare `out/` line, and `slides/**/*.pptx` is added).
-  In `AGENTS.md`, the rule lines of the previous template are replaced where
-  they appear verbatim, and the new rules are appended where they do not.
+  missing: `.context/log.md` with a first entry pointing at the git history
+  and `README.md`, when the project has no log anywhere;
+  `.context/purpose.md` as the placeholder, when neither it nor a README
+  Purpose section exists; `in/` and `out/` (and `slides/` when `has_slides`)
+  with `.gitkeep`; the missing ignore lines in `.gitignore` (the `out/**`
+  manifest pattern replaces a bare `out/` line, and `slides/**/*.pptx` is
+  added). In an `AGENTS.md` from before the project log, the rule lines of
+  that template are replaced where they appear verbatim, and the folder and
+  context rules are added.
 - It never moves, renames or deletes content. Existing `notes/`, `results/`,
   decks under `out/slides/`, and inputs kept elsewhere stay where they are
-  until someone moves them on purpose.
+  until someone moves them on purpose; older context is moved by
+  `ws projects migrate`, below.
 - Replacing `out/` with the `out/**` manifest pattern keeps every existing file
   ignored; only Markdown files and `.gitkeep` under `out/` become trackable.
 - Every change lands in the project's own working tree and shows in its
   `git diff`; restoring those files undoes it.
+
+## Context migration: root `LOG.md` and README purposes
+
+Projects created before the context moved into `.context/` kept their log in
+a root `LOG.md` and their purpose in the README's `## Purpose` section. They
+stay readable: the context layer briefs from those older locations and marks
+them as such ([Context](context.md)). No key changes, so `schema_version`
+stays `1`.
+
+`ws projects migrate [REF ...]` converts them, for the named projects or
+every project and subproject in the store. Without `--apply` it prints the
+plan and writes nothing; with it, it makes these changes:
+
+- a root `LOG.md` moves to `.context/log.md`, unchanged;
+- where `.context/purpose.md` is absent, empty or still the placeholder, it
+  is written from the README's Purpose section verbatim; with no such
+  section, the placeholder is written;
+- a README Purpose section that matches `.context/purpose.md` word for word
+  (ignoring whitespace) is replaced by the pointer, so the purpose keeps one
+  home;
+- the lines the previous templates wrote in `AGENTS.md` and `README.md`
+  naming `LOG.md` are replaced, where they appear verbatim, by the current
+  template lines naming `.context/`;
+- a project with no log at all gets `.context/log.md` with a first entry.
+
+Migration moves and copies; it never deletes content or merges text. What it
+cannot decide is listed for the person and left as it is: a log in both
+places, a README Purpose section that differs from `.context/purpose.md`,
+and other lines that still name `LOG.md`. Running it again changes nothing
+already migrated. Every change lands in the project's own working tree and
+shows in its `git status`; restoring those files undoes it.
+
+`ws projects check` reports a project that still needs migration as a
+problem naming the planned changes, the decisions left to the person as
+notes, and a purpose that is still the placeholder as a note.
 
 ## Browse Views
 

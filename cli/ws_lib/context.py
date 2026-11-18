@@ -5,9 +5,9 @@ is, what the object there is for, what has happened, and how to work there
 (contracts/context.md). The hand-written part lives in `.context/` folders.
 The workspace root and each store folder may hold `whereami.md` and
 `instructions.md`; a folder-backed object (a project, a resource) may also
-hold `purpose.md` and `log.md`. ws ships the generic layers for the root and
-the stores under `context/` in its checkout, and the workspace's own files add
-to them. Where an object stands among the others is computed from the
+hold `purpose.md` and `log.md`; a project keeps both there from creation.
+ws ships the generic layers for the root and the stores under `context/` in
+its checkout, and the workspace's own files add to them. Where an object stands among the others is computed from the
 relations. Nothing here writes.
 """
 
@@ -22,6 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ws_lib import catalog, dashboard, owner, paths, relations
+from ws_lib import project as projects
 
 
 WORKSPACE = paths.WORKSPACE
@@ -117,11 +118,10 @@ def _home_path(path: Path) -> str:
 
 
 def _read(path: Path) -> str:
-    """A context file's text, or '' when it is absent or empty. Shipped texts
-    may name the ws checkout as `{system}`."""
-    if not path.is_file():
-        return ""
-    text = path.read_text(encoding="utf-8").strip()
+    """A context file's text without HTML comments, or '' when it is absent,
+    empty, or holds only comments (a placeholder). Shipped texts may name
+    the ws checkout as `{system}`."""
+    text = projects.note_text(path)
     return text.replace("{system}", _home_path(paths.SYSTEM))
 
 
@@ -207,16 +207,10 @@ def layers(place: Place, name: str) -> list[dict]:
     return rows
 
 
-def _readme_purpose(readme: Path) -> str:
-    match = re.search(
-        r"^##\s+Purpose\s*$(.*?)(?=^##\s|\Z)", _read(readme), re.MULTILINE | re.DOTALL
-    )
-    return match.group(1).strip() if match else ""
-
-
 def purpose(place: Place) -> dict | None:
     """What the place is for: its `.context/purpose.md`. A project that has
-    none yet falls back to its README's Purpose section, marked as such."""
+    none yet falls back to its README's Purpose section, marked as such; a
+    README section that only points at `.context/purpose.md` is no purpose."""
     folder = _folder(place)
     if folder is None:
         return None
@@ -226,12 +220,12 @@ def purpose(place: Place) -> dict | None:
         return {"text": text, "source": _home_path(source), "fallback": ""}
     if place.obj is not None and place.obj.type == "project":
         readme = folder / "README.md"
-        text = _readme_purpose(readme)
+        text = projects.readme_purpose(readme)
         if text:
             return {
                 "text": text,
                 "source": _home_path(readme),
-                "fallback": "README.md's Purpose section; no .context/purpose.md yet",
+                "fallback": "README.md's Purpose section, an older location: `ws projects migrate` moves it",
             }
     return None
 
@@ -556,6 +550,11 @@ def _missing(brief: dict, note: str) -> str:
         return f"none recorded yet: {brief['folder']}/{CONTEXT}/purpose.md holds the owner's goals"
     if brief["briefing"] == "workspace":
         return "none"
+    if note == "purpose":
+        return (
+            f"not set yet: {brief['folder']}/{CONTEXT}/purpose.md holds it; fill it from "
+            "what the person said, or ask them, never invent it"
+        )
     return f"none recorded yet: {brief['folder']}/{CONTEXT}/{note}.md holds it"
 
 
@@ -583,7 +582,7 @@ def log_lines(brief: dict, full: bool = False) -> list[str]:
     if found is None:
         return ["LOG", f"  {_missing(brief, 'log')}"]
     entries = found["entries"]
-    note = ", older location: move it to .context/log.md" if found["older_location"] else ""
+    note = ", an older location: `ws projects migrate` moves it" if found["older_location"] else ""
     lines = [f"LOG  ({found['path']}, {len(entries)} entries, newest first{note})"]
     shown = entries if full else _briefed_entries(entries)
     for entry in shown:

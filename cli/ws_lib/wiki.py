@@ -275,7 +275,13 @@ def build() -> dict:
                 lines.append(f"- {wiki_link(literature_node_id(key), item['title'])}" if item else f"- {key}  (unknown item)")
             lines.append("")
         readme = project.PROJECTS / name / "README.md"
-        for heading, display in [("Purpose", "Project overview"), ("Current State", "Current state"), ("Next Steps", "Next steps")]:
+        # The purpose's one home is .context/purpose.md; a README that still
+        # holds it is the older location.
+        overview = project.note_text(project.PROJECTS / name / project.CONTEXT_DIR / "purpose.md")
+        overview = overview or project.readme_purpose(readme)
+        if overview:
+            lines += ["## Project overview", "", overview, ""]
+        for heading, display in [("Current State", "Current state"), ("Next Steps", "Next steps")]:
             if has_heading(readme, heading):
                 lines += [f"## {display}", "", embed_section(readme, heading), ""]
         capabilities = [
