@@ -202,7 +202,7 @@ class ContextTests(unittest.TestCase):
         for heading in ("2026-04-04 · mbp", "2026-03-03 · mbp", "2026-02-02 · guillermo", "Summary of 2025"):
             self.assertIn(heading, text)
         self.assertNotIn("2026-01-01", text)
-        self.assertIn("1 older entries", text)
+        self.assertIn("1 older entry: ws show log of project:alpha", text)
 
     def test_older_locations_are_read_and_marked(self) -> None:
         brief = self.brief(self.beta)
@@ -326,14 +326,14 @@ class ContextTests(unittest.TestCase):
         os.chdir(self.root.parent)
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
-            context.command_context(argparse.Namespace(ref=None, json=False))
+            context.command_context(argparse.Namespace(ref=None, json=False, full=False))
         self.assertEqual(buffer.getvalue(), "")
 
     def test_bare_context_briefs_the_current_folder(self) -> None:
         os.chdir(self.alpha / "code")
         buffer = io.StringIO()
         with contextlib.redirect_stdout(buffer):
-            context.command_context(argparse.Namespace(ref=None, json=True))
+            context.command_context(argparse.Namespace(ref=None, json=True, full=False))
         self.assertEqual(json.loads(buffer.getvalue())["ref"], "project:alpha")
 
     def test_show_prints_one_aspect_in_full(self) -> None:
@@ -356,6 +356,156 @@ class ContextTests(unittest.TestCase):
         summary = context.show_summary(catalog.resolve("project:alpha"))
         self.assertEqual(summary["purpose"], "Find out whether shuttling works in SiMOS.")
         self.assertEqual((summary["log"]["entries"], summary["log"]["latest"]), (5, "2026-04-04 · mbp"))
+
+    def run_context(self, ref: str | None, full: bool = False, as_json: bool = False) -> str:
+        buffer = io.StringIO()
+        with contextlib.redirect_stdout(buffer):
+            context.command_context(argparse.Namespace(ref=ref, json=as_json, full=full))
+        return buffer.getvalue()
+
+    def write_log(self, folder: Path, sizes: list[int], summary: int = 0) -> None:
+        """A log whose entries, newest first, hold about the given number of
+        characters each, in lines of 100."""
+        parts = ["# Log\n"]
+        for number, size in enumerate(sizes):
+            lines = "\n".join(f"- Did: step {number}.{line} " + "x" * 80 for line in range(max(1, size // 100)))
+            parts.append(f"## 2026-06-{30 - number:02d} · mbp\n{lines}\n")
+        if summary:
+            parts.append("## Summary of 2025\n" + "\n".join("- Found: " + "y" * 90 for _ in range(summary // 100)) + "\n")
+        (folder / ".context").mkdir(exist_ok=True)
+        (folder / ".context" / "log.md").write_text("\n".join(parts), encoding="utf-8")
+
+    @staticmethod
+    def groups(words: list[str], count: int) -> list[dict]:
+        """Neighbour groups of `count` objects with long names, one per word."""
+        return [
+            {
+                "relation": word,
+                "direction": "in",
+                "meaning": "",
+                "count": count,
+                "items": [
+                    {"ref": f"document:{word}-{number:02d}-" + "x" * 60, "name": "A rather long document title " * 3}
+                    for number in range(count)
+                ],
+            }
+            for word in words
+        ]
+
+    def assert_fits(self, text: str) -> str:
+        """The closing line of a briefing that fits under the limit."""
+        self.assertLess(len(text) + 1, context.BRIEFING_LIMIT)
+        self.assertTrue(text.startswith("WORKSPACE BRIEFING: "))
+        closing = text.splitlines()[-1]
+        self.assertTrue(closing.startswith("Trimmed to stay under 9,500 characters: "), closing)
+        return closing
+
+    def test_a_briefing_that_fits_is_printed_whole(self) -> None:
+        brief = self.brief(self.alpha)
+        self.assertEqual(context.fit(brief), context.render(brief))
+        self.assertNotIn("Trimmed", self.run_context("project:alpha"))
+
+    def test_older_log_entries_are_given_up_first(self) -> None:
+        self.write_log(self.alpha, [2800, 2800, 2800], summary=2800)
+
+        text = context.fit(self.brief(self.alpha))
+
+        closing = self.assert_fits(text)
+        self.assertIn("2026-06-30 · mbp", text, "the newest entry stays")
+        self.assertNotIn("Summary of 2025", text, "the oldest entry shown goes first")
+        self.assertIn("older log entries", closing)
+        self.assertNotIn("related", closing)
+        self.assertIn(self.person.ref, text, "related objects are untouched while the log suffices")
+        self.assertRegex(text, r"\.\.\. \d older entries: ws show log of project:alpha")
+        self.assertTrue(closing.endswith("Everything: ws context project:alpha --full"))
+
+    def test_related_objects_come_next_each_list_pointing_to_the_rest(self) -> None:
+        brief = self.brief(self.alpha)
+        brief["neighbours"] = self.groups(["presents", "describes", "supports", "cites", "reviews", "mentions"], 12)
+
+        text = context.fit(brief)
+
+        closing = self.assert_fits(text)
+        self.assertRegex(closing, r": \d+ related objects\. ")
+        self.assertIn("2026-04-04 · mbp", text)
+        for word in ("presents", "mentions"):
+            self.assertRegex(text, rf"\.\.\. \d+ more: ws show project:alpha --as {word}\n")
+
+    def test_then_the_longest_note_becomes_a_pointer_to_its_file(self) -> None:
+        note = self.alpha / ".context" / "instructions.md"
+        note.write_text("Work carefully here.\n\n" + ("Rule: " + "z" * 94 + "\n") * 80, encoding="utf-8")
+        (self.root / ".context").mkdir()
+        (self.root / ".context" / "instructions.md").write_text("Short root rule. " * 40, encoding="utf-8")
+
+        text = context.fit(self.brief(self.alpha))
+
+        closing = self.assert_fits(text)
+        source = context._home_path(note)
+        self.assertIn(f"Read it before working here: {source}", text)
+        self.assertNotIn("Work carefully here.", text)
+        self.assertIn("Short root rule.", text, "only the notes needed are given up, longest first")
+        self.assertIn("These rules are for the session the person is talking to", text, "shipped text stays")
+        # What was trimmed on the way and still fits comes back.
+        self.assertIn("Summary of 2025", text)
+        self.assertIn(self.person.ref, text)
+        self.assertEqual(closing, f"Trimmed to stay under 9,500 characters: the note {source}. "
+                                  "Everything: ws context project:alpha --full")
+
+    def test_a_newest_entry_too_long_to_fit_is_shortened(self) -> None:
+        # Few lines, each of them long: the line limit alone does not help.
+        long_lines = "\n".join(f"- Found: result {line} " + "w " * 1000 for line in range(6))
+        (self.alpha / ".context" / "log.md").write_text(
+            f"# Log\n\n## 2026-06-30 · mbp\n{long_lines}\n\n## 2026-06-29 · mbp\n- Did: less\n", encoding="utf-8"
+        )
+
+        text = context.fit(self.brief(self.alpha))
+
+        closing = self.assert_fits(text)
+        self.assertIn("2026-06-30 · mbp", text)
+        self.assertIn(" …\n  ... the rest of the entry above and 1 older entry: ws show log of project:alpha", text)
+        self.assertIn("the end of the newest log entry", closing)
+        self.assertIn(self.person.ref, text, "related objects outlast the newest history")
+
+    def test_as_a_last_resort_the_end_is_cut(self) -> None:
+        brief = self.brief(self.alpha)
+        brief["description"] = "A description far too long for any briefing. " * 300
+
+        text = context.fit(brief)
+
+        closing = self.assert_fits(text)
+        self.assertIn("the end of the briefing", closing)
+        self.assertIn("[projects · ws]", text, "the most lasting part stays")
+        self.assertTrue(text.endswith(f"\n  ...\n\n{closing}"))
+
+    def test_full_prints_everything_and_json_stays_whole(self) -> None:
+        self.write_log(self.alpha, [2400] * 30)
+        brief = self.brief(self.alpha)
+        brief_json = json.loads(self.run_context("project:alpha", as_json=True))
+
+        trimmed = self.run_context("project:alpha")
+        full = self.run_context("project:alpha", full=True)
+
+        self.assert_fits(trimmed.rstrip("\n"))
+        self.assertGreater(len(full), context.BRIEFING_LIMIT)
+        self.assertNotIn("Trimmed", full)
+        self.assertNotIn("older entr", full)
+        for entry in brief["log"]["entries"]:
+            self.assertIn(entry["heading"], full)
+        self.assertEqual(json.loads(self.run_context("project:alpha", full=True, as_json=True)), brief_json)
+        self.assertEqual(len(brief_json["log"]["entries"]), 30)
+
+    def test_a_store_or_the_root_points_to_its_log_file(self) -> None:
+        for folder in (self.stores["projects"], self.root):
+            self.write_log(folder, [100] * 5)
+            path = context._home_path(folder / ".context" / "log.md")
+            text = "\n".join(context.log_lines(self.brief(folder)))
+            self.assertIn(f"... 2 older entries: read {path}", text)
+            self.assertNotIn("ws show log of", text)
+        brief = self.brief(self.root)
+        brief["agenda"]["active_projects"] = [{"ref": f"project:p{n:03d}", "name": "x" * 90} for n in range(200)]
+        closing = self.assert_fits(context.fit(brief))
+        self.assertIn("active projects", closing)
+        self.assertTrue(closing.endswith(f"Everything: `ws context --full`, run in {context._home_path(self.root)}"))
 
     def test_context_is_a_registered_objects_command(self) -> None:
         sys.path.insert(0, str(Path(__file__).resolve().parents[1]))

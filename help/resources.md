@@ -67,7 +67,7 @@ notes are edited directly too: `purpose.md` says what the bundle is for and
 `log.md` what has happened, newest entry first. A bundle that keeps
 growing, such as an application in progress, benefits from both.
 `ws show resource:<key>` summarises them under the record, and
-`ws context resource:<key>` gives the full briefing (`ws help context`).
+`ws context resource:<key>` briefs a session on it (`ws help context`).
 
 ```bash
 ws resources files resource:<key>

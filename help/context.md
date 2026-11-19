@@ -30,8 +30,9 @@ Next: the purpose is not set. Ask the person, then write their words into <folde
 ## Which place
 
 ```bash
-ws context                    # the folder you are in
-ws context project:<key>      # any object, from anywhere
+ws context                        # the folder you are in
+ws context project:<key>          # any object, from anywhere
+ws context project:<key> --full   # everything, with no size limit
 ```
 
 Bare `ws context` resolves the folder it runs in, after following symlinks,
@@ -53,7 +54,8 @@ means for the work. UPCOMING lists the open tasks joined to it by any edge.
 At the root, UPCOMING lists open tasks due within 7 days or overdue, counts
 the other open tasks, and shows events in the next 14 days. LOG shows the
 latest three entries and every summary entry, with the log's path and its
-entry count.
+entry count, and then where the older ones are: `ws show log of REF` for an
+object, the log's file for a store or the root.
 
 Each whereami and house-rules layer is labelled with where it comes from:
 `[workspace · ws]` is text that ships with ws,
@@ -72,6 +74,36 @@ One aspect in full, without the rest, comes from `ws show`
 ws show purpose of project:<key>
 ws show log of project:<key>
 ```
+
+## When a briefing is long
+
+A hook's output reaches a Claude Code session whole only up to 10,000
+characters; beyond that the session sees a file path and a short preview.
+So a briefing stays under 9,500 characters. A longer one gives things up in
+this order, each only as far as needed:
+
+```text
+older log entries   the oldest first, down to the newest; then the end of
+                    the newest entry, if that alone is too long
+related objects     fewer under each relation word; at a store, fewer of
+                    its contents; at the root, fewer active projects
+long notes          your own whereami, house-rules and purpose notes, the
+                    longest first, each replaced by a line saying to read
+                    its file
+```
+
+What still fits afterwards comes back, related objects first. The text ws
+ships is never replaced. Every shortened list ends with the command that
+prints the rest, and a closing line names what was left out:
+
+```text
+Trimmed to stay under 9,500 characters: 2 older log entries and 23 related objects. Everything: ws context project:<key> --full
+```
+
+`--full` prints everything with no limit: every log entry, whole, and every
+related object. A store or the root has no REF, so there the line says to
+run `ws context --full` in its folder. Short notes, and old log entries
+folded into a summary, keep a briefing from needing to be trimmed.
 
 ## Writing the notes
 
@@ -157,7 +189,8 @@ ws projects migrate --apply
 ## Briefing every session automatically
 
 Run `ws context` when a session starts; it stays silent outside the
-workspace, so a global hook leaves other sessions alone. Hooks may not see
+workspace, so a global hook leaves other sessions alone, and it stays under
+the size a hook can hand on whole (see above). Hooks may not see
 your shell's `PATH`, so give the absolute path of `ws`; the examples
 assume `~/.local/bin/ws`.
 
@@ -189,4 +222,5 @@ exists too. Outside the workspace there is nothing to brief, on purpose.
 `identity`; either REF is empty when that record does not exist.
 Objects add `description`, `neighbours`, `tasks` and `serves`, stores add
 `listing`, and the root adds `agenda`. Each whereami and instructions layer
-carries `level`, `source`, `shipped` and `text`.
+carries `level`, `source`, `shipped` and `text`. The JSON is never trimmed:
+it holds every log entry and every neighbour, with or without `--full`.

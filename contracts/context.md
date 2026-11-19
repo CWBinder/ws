@@ -93,7 +93,10 @@ keeps only the start, loses the newest history rather than the rules:
    open tasks due within 7 days or overdue, the count of other open tasks,
    and events in the next 14 days.
 5. **LOG**: the latest three entries and any summary entry, with the log's
-   path and entry count.
+   path and entry count. Each entry shows at most its first 25 lines. A line
+   after them names the entries left out and where to read them:
+   `ws show log of REF` for an object, the log's file for a store or the
+   root, which have no REF.
 
 A section the place cannot have is left out: a store shows no PURPOSE or
 UPCOMING, and no LOG unless it keeps one; a record-only object shows no
@@ -113,13 +116,53 @@ section only points at `.context/purpose.md`), and a project without
 `ws projects migrate` as the command that moves them; it never moves or
 rewrites them itself.
 
+### Size
+
+A session-start hook's output reaches a Claude Code session whole only up
+to 10,000 characters; beyond that the session gets a file path and a short
+preview, which still holds the `WORKSPACE BRIEFING` line. The text form
+therefore prints fewer than 9,500 characters, its final newline included.
+A briefing longer than that gives things up in this order, each step only
+as far as needed:
+
+1. older log entries, the oldest shown first, down to the newest entry;
+   then the end of the newest entry, cut at a word, down to its first
+   1,000 characters;
+2. the lists of related objects, step by step down to none: an object's
+   neighbours under each relation, a store's contents, the root's active
+   projects;
+3. the workspace's own notes (whereami, instructions, purpose) of 500
+   characters or more, the longest first, each replaced by a line that
+   gives its size and tells the reader to read the file. The texts ws ships
+   are never replaced.
+
+Then it takes back what still fits, related objects before log entries.
+Every shortened list ends with a line counting what is left out and naming
+the command that prints it (`ws show REF --as WORD`, `ws list <store>`,
+`ws list projects --status active`). Should all three steps not suffice,
+the end of the text is cut, which keeps the most lasting part.
+
+A trimmed briefing closes with one line naming what was given up and the
+command that prints everything:
+
+```text
+Trimmed to stay under 9,500 characters: 2 older log entries and 23 related objects. Everything: ws context project:<key> --full
+```
+
+For a store or the root, which have no REF, the command reads
+`` `ws context --full`, run in <folder> ``. A briefing that fits has no such
+line. `--full` prints everything with no size limit: every log entry whole,
+and every object of every list.
+
 `--json` prints the same content as one object with `briefing`, `subject`,
 `ref`, `store`, `folder`, `whereami`, `owner`, `instructions`, `purpose` and
 `log`; `owner` is `null` without an owner, else `name`, `person` and `identity`
 (a REF is empty when that record does not exist). Objects add `description`, `neighbours`, `tasks` and `serves`, stores
 `listing`, the root `agenda`. Each `whereami` and `instructions` layer carries
 `level`, `source`, `shipped` and `text`. Fields may be added; existing
-meanings stay.
+meanings stay. The size limit and `--full` concern the text alone: the JSON
+always holds every log entry and every neighbour, and is the same with or
+without `--full`.
 
 ## Aspects
 
@@ -138,4 +181,6 @@ Older locations are not consulted there.
 The layer is additive: no existing record, field or file changes meaning.
 Projects keep their root `LOG.md` and README purpose readable until
 `ws projects migrate` moves them into `.context/`. Every command of the layer
-reads; none writes.
+reads; none writes. Since the size limit, a long briefing's text is trimmed
+by default; `--full` prints everything, every log entry and every related
+object included. The JSON is unchanged.
